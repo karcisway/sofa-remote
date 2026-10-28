@@ -9,6 +9,12 @@ on:
   pull_request:
   workflow_dispatch:
 
+# A newer push to the same branch cancels the older build, so the slow macOS runners aren't tied
+# up with outdated commits. Tag builds (releases) always run to the end.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
 jobs:
   pc:
     strategy:
