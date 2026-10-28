@@ -1282,6 +1282,7 @@ const app = {
       this.servers.map(s => row(s.id, h('span', { class: 'dot' + (s.online ? ' on' : '') }), s.label,
         s.online ? `${s.latency ?? '…'} ms · ${s.url}` : 'offline · ' + s.url)),
       this.servers.length > 1 ? row('all', h('span', { class: 'dot on', style: 'background:var(--acc)' }), 'All devices', 'every device’s layouts as tabs') : null), [
+      window.SofaAndroid?.scanQr ? sheetBtn('Scan QR code', () => { closeSheet(); window.SofaAndroid.scanQr(); }) : null,
       sheetBtn('Add / manage devices', () => { closeSheet(); this.show('settings'); }),
       sheetBtn('Close', closeSheet),
     ]);
@@ -1411,6 +1412,7 @@ const app = {
     const input = h('input', { placeholder: 'http://192.168.0.x:8765/?k=…', autocomplete: 'off', autocapitalize: 'off' });
     return h('div', { class: 'settings' },
       h('h2', {}, 'Connected PCs'),
+      window.SofaAndroid?.scanQr ? h('button', { class: 'wide', onclick: () => window.SofaAndroid.scanQr() }, 'Scan QR code') : null,
       this.servers.map(s => h('div', { class: 'card row' },
         h('span', { class: 'dot' + (s.online ? ' on' : '') }),
         h('div', { class: 'grow' }, h('b', {}, s.label), h('small', { class: 'srv-stats', 'data-id': s.id }, this.serverInfo(s))),

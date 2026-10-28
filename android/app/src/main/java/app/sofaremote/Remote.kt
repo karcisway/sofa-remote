@@ -93,9 +93,10 @@ object Remote {
 
     fun socketUrl(link: String): String? {
         val uri = runCatching { Uri.parse(link.trim()) }.getOrNull() ?: return null
-        val key = uri.getQueryParameter("k") ?: return null
         val scheme = when (uri.scheme) { "http" -> "ws"; "https" -> "wss"; else -> return null }
-        val host = uri.host ?: return null
+        if (uri.isOpaque) return null
+        val key = uri.getQueryParameter("k")?.takeIf { it.isNotBlank() } ?: return null
+        val host = uri.host?.takeIf { it.isNotBlank() } ?: return null
         val port = if (uri.port > 0) ":${uri.port}" else ""
         return "$scheme://$host$port/ws?k=${Uri.encode(key)}"
     }

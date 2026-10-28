@@ -54,7 +54,7 @@ dependencies {
     implementation("androidx.core:core-ktx:1.13.0")
     implementation("androidx.media:media:1.7.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
+    implementation("com.journeyapps:zxing-android-embedded:4.3.0")
 }
 
 // Every APK build is copied to release/ at the top of the project, next to the PC binaries:

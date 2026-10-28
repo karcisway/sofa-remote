@@ -101,6 +101,10 @@ You can build your own with the `pad` action and `"mode": "pad"` joysticks (see 
 `sofa-remote-android.apk` (Android 8+, on the Releases page) is the same remote in an app,
 plus what a web page can't do:
 
+- **QR scanner:** scan from the connection screen, Settings, the device menu, or the offline
+  screen. The camera scanner and decoder are bundled in the APK and work without Google Play
+  Services or an extra download. Camera permission is requested when scanning starts.
+
 - **Volume buttons control the PC**, even with the screen off or locked. Pressing both at once
   is play/pause. Under ⚙ › Phone buttons you choose what volume up, down, both, and the
   headset / notification ⏯ ⏭ ⏮ buttons do: a key (`volup`, `space`, `f`), a shortcut

@@ -30,9 +30,9 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
-import com.google.mlkit.vision.barcode.common.Barcode
-import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
-import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
+import com.journeyapps.barcodescanner.ScanIntentResult
+import com.journeyapps.barcodescanner.ScanOptions
+import com.google.zxing.client.android.Intents
 import org.json.JSONObject
 
 /** The web app from the PC in a WebView, plus what a web page can't do: the volume buttons
@@ -210,6 +210,7 @@ class MainActivity : Activity() {
                 setPadding(0, pad / 2, 0, pad)
             })
             addView(button("Try again") { load(link) }, LinearLayout.LayoutParams(-1, -2))
+            addView(button("Scan QR code") { scanQr() }, LinearLayout.LayoutParams(-1, -2))
             addView(button("Connect to another PC") { showSetup(null) }, LinearLayout.LayoutParams(-1, -2))
             addView(button("Exit") { exitApp() }, LinearLayout.LayoutParams(-1, -2))
         }
@@ -248,6 +249,30 @@ class MainActivity : Activity() {
         return true
     }
 
+    @Suppress("DEPRECATION")
+    private fun scanQr() {
+        val options = ScanOptions()
+            .setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+            .setPrompt("Scan the QR code shown on your PC")
+            .setBeepEnabled(false)
+            .addExtra(Intents.Scan.SHOW_MISSING_CAMERA_PERMISSION_DIALOG, false)
+            .setOrientationLocked(false)
+            .setCaptureActivity(QrScannerActivity::class.java)
+        startActivityForResult(options.createScanIntent(this), QR_REQUEST)
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != QR_REQUEST) return
+        if (data?.getBooleanExtra(Intents.Scan.MISSING_CAMERA_PERMISSION, false) == true) {
+            toast("Allow camera permission in app settings to scan QR codes, or paste the PC link")
+        }
+        if (resultCode != RESULT_OK || data == null) return
+        val link = ScanIntentResult.parseActivityResult(resultCode, data).contents ?: return
+        if (!useLink(link)) toast("That QR code is not a Sofa Remote connection link")
+    }
+
     // ---- first start / change PC
     private fun showSetup(prefill: String?) {
         val pad = (20 * resources.displayMetrics.density).toInt()
@@ -266,12 +291,7 @@ class MainActivity : Activity() {
         }
         val scan = Button(this).apply {
             text = "Scan the QR code"
-            setOnClickListener {
-                val options = GmsBarcodeScannerOptions.Builder().setBarcodeFormats(Barcode.FORMAT_QR_CODE).build()
-                GmsBarcodeScanning.getClient(this@MainActivity, options).startScan()
-                    .addOnSuccessListener { code -> code.rawValue?.let { input.setText(it); connect() } }
-                    .addOnFailureListener { toast("Scanner unavailable: paste the link instead") }
-            }
+            setOnClickListener { scanQr() }
         }
         val ok = Button(this).apply { text = "Connect"; setOnClickListener { connect() } }
         val box = LinearLayout(this).apply {
@@ -333,6 +353,9 @@ class MainActivity : Activity() {
         fun changePc() = runOnUiThread { showSetup(null) }
 
         @JavascriptInterface
+        fun scanQr() = runOnUiThread { this@MainActivity.scanQr() }
+
+        @JavascriptInterface
         fun showKeyboard() = runOnUiThread {
             val w = web ?: return@runOnUiThread
             w.requestFocus()
@@ -346,5 +369,6 @@ class MainActivity : Activity() {
         /** Notification "Exit" button: close the app and stop the volume buttons. */
         const val ACTION_EXIT = "app.sofaremote.EXIT"
         private const val MIC_REQUEST = 2
+        private const val QR_REQUEST = 3
     }
 }
