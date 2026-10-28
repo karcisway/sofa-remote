@@ -243,18 +243,26 @@ pub mod driver {
             return Err(e);
         }
         println!("Gamepads: starting the driver installer; approve the Windows prompt on this PC.");
+        // A declined prompt is error 1223; anything else is reported as PowerShell words it
         let code = powershell(&format!(
-            "try {{ (Start-Process -LiteralPath '{}' -Verb RunAs -Wait -PassThru).ExitCode }} catch {{ 'cancelled' }}",
+            "try {{ (Start-Process -FilePath '{}' -Verb RunAs -Wait -PassThru).ExitCode }} \
+             catch {{ $e = $_.Exception; while ($e.InnerException) {{ $e = $e.InnerException }}; \
+             if ($e.NativeErrorCode -eq 1223) {{ 'cancelled' }} else {{ 'error: ' + $e.Message }} }}",
             file.display()))?;
-        if downloaded {
-            let _ = std::fs::remove_file(&file);
-        }
-        match code.as_str() {
+        let result = match code.as_str() {
             "0" | "3010" if installed() => Ok(()),
             "0" | "3010" => Err("driver installed: restart the PC to use gamepads".into()),
-            "cancelled" | "1223" => Err("gamepad driver install was cancelled on the PC".into()),
-            other => Err(format!("gamepad driver installer failed ({other})")),
+            "cancelled" | "1223" => Err("gamepad driver install was cancelled on the PC (the Windows prompt was declined)".into()),
+            other => Err(format!("gamepad driver installer failed ({})", other.trim_start_matches("error: "))),
+        };
+        if matches!(code.as_str(), "0" | "3010") {
+            if downloaded {
+                let _ = std::fs::remove_file(&file);
+            }
+            return result;
         }
+        // Left in place so it can be started by hand
+        result.map_err(|e| format!("{e}. To install it yourself, run {}", file.display()))
     }
 
     /// A ViGEmBus installer the user saved: next to sofa-remote, in the current folder or in Downloads.
