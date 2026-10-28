@@ -104,6 +104,9 @@ plus what a web page can't do:
 - **QR scanner:** scan from the connection screen, Settings, the device menu, or the offline
   screen. The camera scanner and decoder are bundled in the APK and work without Google Play
   Services or an extra download. Camera permission is requested when scanning starts.
+- **Disconnect while offline:** tap the offline status and confirm **Disconnect** to stop
+  reconnecting and return to the connection screen. **Cancel** keeps reconnecting. The native
+  offline screen also has a **Disconnect** button.
 
 - **Volume buttons control the PC**, even with the screen off or locked. Pressing both at once
   is play/pause. Under ⚙ › Phone buttons you choose what volume up, down, both, and the

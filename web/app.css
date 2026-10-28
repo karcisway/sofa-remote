@@ -72,6 +72,8 @@ nav.compact .tab-name { display:none; }
 #ping { position:fixed; right:10px; bottom:calc(10px + env(safe-area-inset-bottom)); z-index:20; pointer-events:none;
         font:600 12px ui-monospace,Consolas,monospace; padding:4px 8px; border-radius:8px; background:var(--shade); color:var(--dim); }
 #ping[hidden] { display:none; }
+#ping:not(:disabled) { pointer-events:auto; min-height:40px; padding:8px 12px; }
+#ping:disabled { cursor:default; }
 #ping.ok { color:var(--ok); } #ping.warn { color:var(--warn); } #ping.err { color:var(--err); }
 #toast { position:fixed; left:50%; bottom:calc(16px + env(safe-area-inset-bottom)); transform:translate(-50%, 20px); opacity:0;
          z-index:30; pointer-events:none; background:var(--card2); color:var(--fg); padding:10px 16px; border-radius:12px;

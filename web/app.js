@@ -110,6 +110,7 @@ class Server {
   get transport() { return this.dc ? 'WebRTC' : 'WebSocket'; }
 
   connect() {
+    if (this.closed) return;
     const ws = new WebSocket(this.url.replace(/^http/, 'ws') + '/ws?k=' + encodeURIComponent(this.key) + '&c=' + CLIENT_ID);
     ws.binaryType = 'arraybuffer';
     this.ws = ws;
@@ -1175,6 +1176,7 @@ const app = {
     addEventListener('blur', releaseEverything);
     addEventListener('keydown', e => this.hardwareKey(e));
     $('#btn-dev').onclick = () => this.openDeviceSheet();
+    $('#ping').onclick = () => this.disconnectOffline();
     addEventListener('pointerdown', () => this.noteActivity(), { capture: true, passive: true });
     new ResizeObserver(() => this.fitTabs()).observe($('#tabs'));
     this.startTimers();
@@ -1256,6 +1258,21 @@ const app = {
     if (!confirm(`Remove ${s.label}?`)) return;
     s.close();
     this.servers = this.servers.filter(x => x !== s);
+    this.saveServers();
+    this.render();
+  },
+  disconnectOffline() {
+    const s = this.currentServer();
+    if (!s || s.online) return;
+    if (s.id === 'self' && window.SofaAndroid?.disconnect) return window.SofaAndroid.disconnect();
+    if (!confirm(`Disconnect from ${s.label}? Stop reconnecting to this PC?`)) return;
+    s.close();
+    this.servers = this.servers.filter(x => x !== s);
+    if (s.id === 'self') {
+      store.set('selfKey', null);
+      this.noKey = 'Disconnected from ' + s.label + '.';
+    }
+    if (this.edit?.srv === s) this.edit = null;
     this.saveServers();
     this.render();
   },
@@ -1522,6 +1539,9 @@ const app = {
       h('span', {}, dev ? dev.label : 'All'), iconEl('lucide:chevron-down'));
     // Offline is always shown; the latency only if enabled
     const srv = this.currentServer(), el = $('#ping');
+    el.disabled = !srv || srv.online;
+    el.title = srv && !srv.online ? 'Disconnect from ' + srv.label : '';
+    el.setAttribute('aria-label', srv && !srv.online ? 'Offline. Disconnect from ' + srv.label : 'Connection latency');
     if (srv && !srv.online) { el.hidden = false; el.textContent = '○ offline'; el.className = 'err'; }
     else if (srv && store.get('showPing', false)) {
       el.hidden = false;

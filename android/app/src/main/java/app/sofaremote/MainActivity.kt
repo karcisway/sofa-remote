@@ -2,6 +2,7 @@ package app.sofaremote
 
 import android.Manifest
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -54,6 +55,7 @@ class MainActivity : Activity() {
     private var backPressedAt = 0L
     /** Language of a voice request waiting for the microphone permission. */
     private var pendingSpeech: String? = null
+    private var disconnectDialog: AlertDialog? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -92,6 +94,7 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
+        disconnectDialog?.dismiss()
         ButtonService.onExit = null
         super.onDestroy()
     }
@@ -169,7 +172,7 @@ class MainActivity : Activity() {
             w.webViewClient = object : WebViewClient() {
                 // The PC is off or unreachable: show what to do instead of a blank page
                 override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
-                    if (request.isForMainFrame) showOffline(request.url.toString(), error.description.toString())
+                    if (request.isForMainFrame && view === web) showOffline(request.url.toString(), error.description.toString())
                 }
             }
             w.webChromeClient = object : WebChromeClient() {
@@ -210,6 +213,7 @@ class MainActivity : Activity() {
                 setPadding(0, pad / 2, 0, pad)
             })
             addView(button("Try again") { load(link) }, LinearLayout.LayoutParams(-1, -2))
+            addView(button("Disconnect") { confirmDisconnect() }, LinearLayout.LayoutParams(-1, -2))
             addView(button("Scan QR code") { scanQr() }, LinearLayout.LayoutParams(-1, -2))
             addView(button("Connect to another PC") { showSetup(null) }, LinearLayout.LayoutParams(-1, -2))
             addView(button("Exit") { exitApp() }, LinearLayout.LayoutParams(-1, -2))
@@ -271,6 +275,34 @@ class MainActivity : Activity() {
         if (resultCode != RESULT_OK || data == null) return
         val link = ScanIntentResult.parseActivityResult(resultCode, data).contents ?: return
         if (!useLink(link)) toast("That QR code is not a Sofa Remote connection link")
+    }
+
+    private fun confirmDisconnect() {
+        if (disconnectDialog?.isShowing == true) return
+        val host = Prefs.link(this)?.let { Uri.parse(it).host } ?: "this PC"
+        disconnectDialog = AlertDialog.Builder(this)
+            .setTitle("Disconnect from $host?")
+            .setMessage("Stop reconnecting and return to the connection screen?")
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton("Disconnect") { _, _ -> disconnectPc() }
+            .create().also { it.show() }
+    }
+
+    private fun disconnectPc() {
+        Prefs.clearLink(this)
+        Remote.disconnect()
+        stopService(Intent(this, ButtonService::class.java))
+        pendingSpeech = null
+        speech.destroy()
+        held.clear()
+        hideFullscreen()
+        web?.let { view ->
+            view.stopLoading()
+            (view.parent as? ViewGroup)?.removeView(view)
+            view.destroy()
+        }
+        web = null
+        showSetup(null)
     }
 
     // ---- first start / change PC
@@ -354,6 +386,9 @@ class MainActivity : Activity() {
 
         @JavascriptInterface
         fun scanQr() = runOnUiThread { this@MainActivity.scanQr() }
+
+        @JavascriptInterface
+        fun disconnect() = runOnUiThread { confirmDisconnect() }
 
         @JavascriptInterface
         fun showKeyboard() = runOnUiThread {
