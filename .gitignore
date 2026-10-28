@@ -1,0 +1,22 @@
+# Rust
+/target
+/target-linux
+
+# Built binaries and APKs (published as GitHub Release assets instead)
+/release/*
+!/release/README.md
+/build
+
+# Per-PC data written next to the executable
+.remote_token
+layouts.json
+layouts.json.tmp
+
+# Android
+android/.gradle/
+android/.kotlin/
+android/build/
+android/app/build/
+android/local.properties
+android/*.keystore
+*.jks

@@ -1,0 +1,942 @@
+{
+  "version": 1,
+  "layouts": [
+    {
+      "id": "remote",
+      "name": "Remote",
+      "icon": "🎬",
+      "cols": 12,
+      "rowHeight": 64,
+      "widgets": [
+        {
+          "type": "button",
+          "x": 0,
+          "y": 0,
+          "w": 12,
+          "h": 2,
+          "icon": "⏯",
+          "label": "Play / Pause",
+          "style": "accent",
+          "action": {
+            "key": "playpause"
+          }
+        },
+        {
+          "type": "button",
+          "x": 0,
+          "y": 2,
+          "w": 4,
+          "h": 1,
+          "icon": "🔉",
+          "label": "Vol −",
+          "repeat": true,
+          "action": {
+            "key": "voldown"
+          }
+        },
+        {
+          "type": "button",
+          "x": 4,
+          "y": 2,
+          "w": 4,
+          "h": 1,
+          "icon": "🔇",
+          "label": "Mute",
+          "action": {
+            "key": "mute"
+          }
+        },
+        {
+          "type": "button",
+          "x": 8,
+          "y": 2,
+          "w": 4,
+          "h": 1,
+          "icon": "🔊",
+          "label": "Vol +",
+          "repeat": true,
+          "action": {
+            "key": "volup"
+          }
+        },
+        {
+          "type": "button",
+          "x": 0,
+          "y": 3,
+          "w": 3,
+          "h": 1,
+          "icon": "⏮",
+          "label": "Prev",
+          "action": {
+            "key": "prev"
+          }
+        },
+        {
+          "type": "button",
+          "x": 3,
+          "y": 3,
+          "w": 3,
+          "h": 1,
+          "icon": "⏪",
+          "label": "Back",
+          "repeat": true,
+          "action": {
+            "key": "left"
+          }
+        },
+        {
+          "type": "button",
+          "x": 6,
+          "y": 3,
+          "w": 3,
+          "h": 1,
+          "icon": "⏩",
+          "label": "Fwd",
+          "repeat": true,
+          "action": {
+            "key": "right"
+          }
+        },
+        {
+          "type": "button",
+          "x": 9,
+          "y": 3,
+          "w": 3,
+          "h": 1,
+          "icon": "⏭",
+          "label": "Next",
+          "action": {
+            "key": "next"
+          }
+        },
+        {
+          "type": "button",
+          "x": 0,
+          "y": 4,
+          "w": 3,
+          "h": 1,
+          "icon": "F",
+          "label": "Fullscreen",
+          "action": {
+            "key": "f"
+          }
+        },
+        {
+          "type": "button",
+          "x": 3,
+          "y": 4,
+          "w": 3,
+          "h": 1,
+          "icon": "␣",
+          "label": "Space",
+          "action": {
+            "key": "space"
+          }
+        },
+        {
+          "type": "button",
+          "x": 6,
+          "y": 4,
+          "w": 3,
+          "h": 1,
+          "icon": "Esc",
+          "label": "Exit",
+          "action": {
+            "key": "esc"
+          }
+        },
+        {
+          "type": "button",
+          "x": 9,
+          "y": 4,
+          "w": 3,
+          "h": 1,
+          "icon": "⇆",
+          "label": "Alt+Tab",
+          "action": {
+            "keys": [
+              "alt",
+              "tab"
+            ]
+          }
+        },
+        {
+          "type": "button",
+          "x": 0,
+          "y": 5,
+          "w": 4,
+          "h": 1,
+          "icon": "−",
+          "label": "Zoom out",
+          "repeat": true,
+          "action": {
+            "keys": [
+              "ctrl",
+              "minus"
+            ]
+          }
+        },
+        {
+          "type": "button",
+          "x": 4,
+          "y": 5,
+          "w": 4,
+          "h": 1,
+          "icon": "100%",
+          "label": "Zoom reset",
+          "action": {
+            "keys": [
+              "ctrl",
+              "0"
+            ]
+          }
+        },
+        {
+          "type": "button",
+          "x": 8,
+          "y": 5,
+          "w": 4,
+          "h": 1,
+          "icon": "+",
+          "label": "Zoom in",
+          "repeat": true,
+          "action": {
+            "keys": [
+              "ctrl",
+              "plus"
+            ]
+          }
+        },
+        {
+          "type": "touchpad",
+          "x": 0,
+          "y": 6,
+          "w": 12,
+          "h": 3
+        },
+        {
+          "type": "button",
+          "x": 0,
+          "y": 9,
+          "w": 4,
+          "h": 1,
+          "label": "Left click",
+          "action": {
+            "mouse": "click"
+          }
+        },
+        {
+          "type": "button",
+          "x": 4,
+          "y": 9,
+          "w": 4,
+          "h": 1,
+          "label": "Double click",
+          "action": {
+            "mouse": "dblclick"
+          }
+        },
+        {
+          "type": "button",
+          "x": 8,
+          "y": 9,
+          "w": 4,
+          "h": 1,
+          "label": "Right click",
+          "action": {
+            "mouse": "rclick"
+          }
+        },
+        {
+          "type": "button",
+          "x": 0,
+          "y": 10,
+          "w": 3,
+          "h": 1,
+          "icon": "▲",
+          "repeat": true,
+          "action": {
+            "key": "up"
+          }
+        },
+        {
+          "type": "button",
+          "x": 3,
+          "y": 10,
+          "w": 3,
+          "h": 1,
+          "icon": "▼",
+          "repeat": true,
+          "action": {
+            "key": "down"
+          }
+        },
+        {
+          "type": "button",
+          "x": 6,
+          "y": 10,
+          "w": 3,
+          "h": 1,
+          "icon": "↵",
+          "label": "Enter",
+          "action": {
+            "key": "enter"
+          }
+        },
+        {
+          "type": "button",
+          "x": 9,
+          "y": 10,
+          "w": 3,
+          "h": 1,
+          "icon": "F11",
+          "action": {
+            "key": "f11"
+          }
+        },
+        {
+          "type": "lockscreen",
+          "x": 0,
+          "y": 11,
+          "w": 12,
+          "h": 1
+        }
+      ]
+    },
+    {
+      "id": "keyboard",
+      "name": "Keyboard",
+      "icon": "⌨️",
+      "cols": 12,
+      "rowHeight": 60,
+      "widgets": [
+        {
+          "type": "keyboard",
+          "x": 0,
+          "y": 0,
+          "w": 12,
+          "h": 1
+        },
+        {
+          "type": "button",
+          "x": 0,
+          "y": 1,
+          "w": 3,
+          "h": 1,
+          "icon": "⌫",
+          "repeat": true,
+          "action": {
+            "key": "backspace"
+          }
+        },
+        {
+          "type": "button",
+          "x": 3,
+          "y": 1,
+          "w": 3,
+          "h": 1,
+          "icon": "↵",
+          "action": {
+            "key": "enter"
+          }
+        },
+        {
+          "type": "button",
+          "x": 6,
+          "y": 1,
+          "w": 3,
+          "h": 1,
+          "icon": "Tab",
+          "action": {
+            "key": "tab"
+          }
+        },
+        {
+          "type": "button",
+          "x": 9,
+          "y": 1,
+          "w": 3,
+          "h": 1,
+          "icon": "Esc",
+          "action": {
+            "key": "esc"
+          }
+        },
+        {
+          "type": "button",
+          "x": 0,
+          "y": 2,
+          "w": 3,
+          "h": 1,
+          "icon": "←",
+          "repeat": true,
+          "action": {
+            "key": "left"
+          }
+        },
+        {
+          "type": "button",
+          "x": 3,
+          "y": 2,
+          "w": 3,
+          "h": 1,
+          "icon": "↑",
+          "repeat": true,
+          "action": {
+            "key": "up"
+          }
+        },
+        {
+          "type": "button",
+          "x": 6,
+          "y": 2,
+          "w": 3,
+          "h": 1,
+          "icon": "↓",
+          "repeat": true,
+          "action": {
+            "key": "down"
+          }
+        },
+        {
+          "type": "button",
+          "x": 9,
+          "y": 2,
+          "w": 3,
+          "h": 1,
+          "icon": "→",
+          "repeat": true,
+          "action": {
+            "key": "right"
+          }
+        },
+        {
+          "type": "button",
+          "x": 0,
+          "y": 3,
+          "w": 3,
+          "h": 1,
+          "icon": "Ctrl L",
+          "label": "Address",
+          "action": {
+            "keys": [
+              "ctrl",
+              "l"
+            ]
+          }
+        },
+        {
+          "type": "button",
+          "x": 3,
+          "y": 3,
+          "w": 3,
+          "h": 1,
+          "icon": "Ctrl T",
+          "label": "New tab",
+          "action": {
+            "keys": [
+              "ctrl",
+              "t"
+            ]
+          }
+        },
+        {
+          "type": "button",
+          "x": 6,
+          "y": 3,
+          "w": 3,
+          "h": 1,
+          "icon": "Ctrl W",
+          "label": "Close tab",
+          "action": {
+            "keys": [
+              "ctrl",
+              "w"
+            ]
+          }
+        },
+        {
+          "type": "button",
+          "x": 9,
+          "y": 3,
+          "w": 3,
+          "h": 1,
+          "icon": "Ctrl A",
+          "label": "Select all",
+          "action": {
+            "keys": [
+              "ctrl",
+              "a"
+            ]
+          }
+        },
+        {
+          "type": "button",
+          "x": 0,
+          "y": 4,
+          "w": 3,
+          "h": 1,
+          "icon": "Ctrl C",
+          "action": {
+            "keys": [
+              "ctrl",
+              "c"
+            ]
+          }
+        },
+        {
+          "type": "button",
+          "x": 3,
+          "y": 4,
+          "w": 3,
+          "h": 1,
+          "icon": "Ctrl V",
+          "action": {
+            "keys": [
+              "ctrl",
+              "v"
+            ]
+          }
+        },
+        {
+          "type": "button",
+          "x": 6,
+          "y": 4,
+          "w": 3,
+          "h": 1,
+          "icon": "Ctrl Z",
+          "action": {
+            "keys": [
+              "ctrl",
+              "z"
+            ]
+          }
+        },
+        {
+          "type": "button",
+          "x": 9,
+          "y": 4,
+          "w": 3,
+          "h": 1,
+          "icon": "Del",
+          "action": {
+            "key": "del"
+          }
+        },
+        {
+          "type": "touchpad",
+          "x": 0,
+          "y": 5,
+          "w": 12,
+          "h": 3
+        }
+      ]
+    },
+    {
+      "id": "clipboard",
+      "name": "Clipboard",
+      "icon": "📋",
+      "cols": 12,
+      "rowHeight": 64,
+      "widgets": [
+        {
+          "type": "clipboard",
+          "x": 0,
+          "y": 0,
+          "w": 12,
+          "h": 6
+        }
+      ]
+    },
+    {
+      "id": "gamepad",
+      "name": "Gamepad",
+      "icon": "🎮",
+      "cols": 16,
+      "rows": 6,
+      "fit": true,
+      "landscape": true,
+      "widgets": [
+        {
+          "type": "button",
+          "x": 0,
+          "y": 0,
+          "w": 2,
+          "h": 1,
+          "icon": "Esc",
+          "action": {
+            "key": "esc"
+          }
+        },
+        {
+          "type": "button",
+          "x": 2,
+          "y": 0,
+          "w": 2,
+          "h": 1,
+          "icon": "Tab",
+          "action": {
+            "hold": "tab"
+          }
+        },
+        {
+          "type": "button",
+          "x": 4,
+          "y": 0,
+          "w": 2,
+          "h": 1,
+          "icon": "Q",
+          "action": {
+            "hold": "q"
+          }
+        },
+        {
+          "type": "button",
+          "x": 6,
+          "y": 0,
+          "w": 2,
+          "h": 1,
+          "icon": "E",
+          "action": {
+            "hold": "e"
+          }
+        },
+        {
+          "type": "button",
+          "x": 8,
+          "y": 0,
+          "w": 2,
+          "h": 1,
+          "icon": "R",
+          "action": {
+            "hold": "r"
+          }
+        },
+        {
+          "type": "button",
+          "x": 10,
+          "y": 0,
+          "w": 2,
+          "h": 1,
+          "icon": "F",
+          "action": {
+            "hold": "f"
+          }
+        },
+        {
+          "type": "button",
+          "x": 12,
+          "y": 0,
+          "w": 4,
+          "h": 1,
+          "icon": "🎯",
+          "label": "Aim",
+          "action": {
+            "hold_mouse": "right"
+          }
+        },
+        {
+          "type": "joystick",
+          "x": 0,
+          "y": 1,
+          "w": 6,
+          "h": 5,
+          "label": "Move",
+          "mode": "keys",
+          "keys": {
+            "up": "w",
+            "left": "a",
+            "down": "s",
+            "right": "d"
+          }
+        },
+        {
+          "type": "button",
+          "x": 6,
+          "y": 1,
+          "w": 2,
+          "h": 2,
+          "icon": "⇧",
+          "label": "Sprint",
+          "action": {
+            "hold": "shift"
+          }
+        },
+        {
+          "type": "button",
+          "x": 8,
+          "y": 1,
+          "w": 2,
+          "h": 2,
+          "icon": "C",
+          "label": "Crouch",
+          "action": {
+            "hold": "ctrl"
+          }
+        },
+        {
+          "type": "button",
+          "x": 6,
+          "y": 3,
+          "w": 4,
+          "h": 1,
+          "icon": "␣",
+          "label": "Jump",
+          "action": {
+            "hold": "space"
+          }
+        },
+        {
+          "type": "button",
+          "x": 6,
+          "y": 4,
+          "w": 4,
+          "h": 2,
+          "icon": "🔥",
+          "label": "Fire",
+          "style": "accent",
+          "action": {
+            "hold_mouse": "left"
+          }
+        },
+        {
+          "type": "joystick",
+          "x": 10,
+          "y": 1,
+          "w": 6,
+          "h": 5,
+          "label": "Look",
+          "mode": "mouse",
+          "speed": 22
+        }
+      ]
+    },
+    {
+      "id": "controller",
+      "name": "Controller",
+      "icon": "🕹",
+      "cols": 24,
+      "rows": 8,
+      "fit": true,
+      "landscape": true,
+      "widgets": [
+        {
+          "type": "button",
+          "x": 0,
+          "y": 0,
+          "w": 3,
+          "h": 1,
+          "icon": "LT",
+          "action": {
+            "pad": "lt"
+          }
+        },
+        {
+          "type": "button",
+          "x": 3,
+          "y": 0,
+          "w": 3,
+          "h": 1,
+          "icon": "LB",
+          "action": {
+            "pad": "lb"
+          }
+        },
+        {
+          "type": "button",
+          "x": 8,
+          "y": 0,
+          "w": 2,
+          "h": 1,
+          "icon": "Back",
+          "style": "dark",
+          "action": {
+            "pad": "back"
+          }
+        },
+        {
+          "type": "button",
+          "x": 11,
+          "y": 0,
+          "w": 2,
+          "h": 1,
+          "icon": "Home",
+          "style": "dark",
+          "action": {
+            "pad": "guide"
+          }
+        },
+        {
+          "type": "button",
+          "x": 14,
+          "y": 0,
+          "w": 2,
+          "h": 1,
+          "icon": "Start",
+          "style": "dark",
+          "action": {
+            "pad": "start"
+          }
+        },
+        {
+          "type": "button",
+          "x": 18,
+          "y": 0,
+          "w": 3,
+          "h": 1,
+          "icon": "RB",
+          "action": {
+            "pad": "rb"
+          }
+        },
+        {
+          "type": "button",
+          "x": 21,
+          "y": 0,
+          "w": 3,
+          "h": 1,
+          "icon": "RT",
+          "action": {
+            "pad": "rt"
+          }
+        },
+        {
+          "type": "joystick",
+          "x": 0,
+          "y": 1,
+          "w": 8,
+          "h": 4,
+          "label": "Left stick",
+          "mode": "pad",
+          "stick": "left"
+        },
+        {
+          "type": "button",
+          "x": 3,
+          "y": 5,
+          "w": 2,
+          "h": 1,
+          "icon": "▲",
+          "action": {
+            "pad": "up"
+          }
+        },
+        {
+          "type": "button",
+          "x": 1,
+          "y": 6,
+          "w": 2,
+          "h": 1,
+          "icon": "◀",
+          "action": {
+            "pad": "left"
+          }
+        },
+        {
+          "type": "button",
+          "x": 5,
+          "y": 6,
+          "w": 2,
+          "h": 1,
+          "icon": "▶",
+          "action": {
+            "pad": "right"
+          }
+        },
+        {
+          "type": "button",
+          "x": 3,
+          "y": 7,
+          "w": 2,
+          "h": 1,
+          "icon": "▼",
+          "action": {
+            "pad": "down"
+          }
+        },
+        {
+          "type": "button",
+          "x": 8,
+          "y": 6,
+          "w": 3,
+          "h": 1,
+          "icon": "L3",
+          "style": "dark",
+          "action": {
+            "pad": "ls"
+          }
+        },
+        {
+          "type": "button",
+          "x": 13,
+          "y": 6,
+          "w": 3,
+          "h": 1,
+          "icon": "R3",
+          "style": "dark",
+          "action": {
+            "pad": "rs"
+          }
+        },
+        {
+          "type": "button",
+          "x": 19,
+          "y": 1,
+          "w": 2,
+          "h": 1,
+          "icon": "Y",
+          "color": "#b8901a",
+          "action": {
+            "pad": "y"
+          }
+        },
+        {
+          "type": "button",
+          "x": 17,
+          "y": 2,
+          "w": 2,
+          "h": 1,
+          "icon": "X",
+          "color": "#2f63c0",
+          "action": {
+            "pad": "x"
+          }
+        },
+        {
+          "type": "button",
+          "x": 21,
+          "y": 2,
+          "w": 2,
+          "h": 1,
+          "icon": "B",
+          "color": "#b53229",
+          "action": {
+            "pad": "b"
+          }
+        },
+        {
+          "type": "button",
+          "x": 19,
+          "y": 3,
+          "w": 2,
+          "h": 1,
+          "icon": "A",
+          "color": "#2a8a45",
+          "action": {
+            "pad": "a"
+          }
+        },
+        {
+          "type": "joystick",
+          "x": 16,
+          "y": 4,
+          "w": 8,
+          "h": 4,
+          "label": "Right stick",
+          "mode": "pad",
+          "stick": "right"
+        }
+      ]
+    }
+  ]
+}

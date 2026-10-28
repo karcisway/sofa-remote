@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover,interactive-widget=resizes-content">
+<meta name="theme-color" content="#0e0f13">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Sofa Remote</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header id="top">
+  <nav id="tabs"></nav>
+  <button id="btn-dev" class="chip" title="Switch device" aria-label="Switch device"></button>
+  <button id="btn-fs" class="icon" title="Fullscreen" aria-label="Fullscreen">⛶</button>
+  <button id="btn-edit" class="icon" title="Edit layout" aria-label="Edit layout">✎</button>
+</header>
+<div id="edit-bar" hidden>
+  <button id="ed-add">+ Widget</button>
+  <button id="ed-layout">Layout</button>
+  <button id="ed-json">JSON</button>
+  <button id="ed-cancel">Cancel</button>
+  <button id="ed-save" class="primary">Save</button>
+</div>
+<main id="view"></main>
+<div id="ping" hidden></div>
+<div id="toast" role="status"></div>
+<div id="keybar" hidden></div>
+<button id="exit-immersive" class="icon" hidden aria-label="Exit fullscreen">⛶</button>
+<dialog id="sheet"></dialog>
+<datalist id="keylist"></datalist>
+<script src="app.js"></script>
+</body>
+</html>

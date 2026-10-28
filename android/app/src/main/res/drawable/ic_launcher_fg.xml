@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- a remote: rounded body, play button, two keys -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#FFFFFF"
+        android:pathData="M44,28h20a8,8 0,0 1,8 8v36a8,8 0,0 1,-8 8h-20a8,8 0,0 1,-8 -8v-36a8,8 0,0 1,8 -8z" />
+    <path android:fillColor="#4F8CFF" android:pathData="M49,40l12,7l-12,7z" />
+    <path android:fillColor="#4F8CFF"
+        android:pathData="M46,62h16a2,2 0,0 1,0 4h-16a2,2 0,0 1,0 -4zM46,70h16a2,2 0,0 1,0 4h-16a2,2 0,0 1,0 -4z" />
+</vector>
