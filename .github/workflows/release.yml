@@ -26,6 +26,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
+      - name: Bundle the gamepad driver installer
+        if: ${{ contains(matrix.target, 'windows') }}
+        run: pwsh -NoProfile -File vendor/fetch.ps1
       - run: cargo test --release --target ${{ matrix.target }}
         if: ${{ !contains(matrix.target, 'x86_64-apple') }}
       - run: cargo build --release --target ${{ matrix.target }}

@@ -425,7 +425,7 @@ async fn handle_json(conn: &mut Conn, m: &Value) -> anyhow::Result<Option<Value>
     Ok(Some(reply))
 }
 
-/// Fetch and run the ViGEmBus installer (once at a time), then tell the phones how it went.
+/// Run the ViGEmBus installer (once at a time), then tell the phones how it went.
 #[cfg(windows)]
 fn install_driver(app: Shared) {
     gamepad::driver::install_in_background(move |r| match r {

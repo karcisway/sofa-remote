@@ -65,13 +65,13 @@ within 30 seconds it gets the same controller back, so the game doesn't drop the
 | macOS | Not available. Use the keyboard/mouse **Gamepad** tab instead |
 
 **Windows driver:** a virtual controller that games can see needs a kernel driver; Windows has
-no way to do it without one. The first time a phone presses a gamepad button, sofa-remote
-downloads the official ViGEmBus installer from GitHub, checks it's validly signed by its
-publisher (Nefarius), and starts it. Approve the Windows prompt on the PC and press a button
-again. To do it ahead of time, run `sofa-remote --install-driver`, or install it yourself from
-[ViGEmBus releases](https://github.com/nefarius/ViGEmBus/releases) (v1.22.0). The PC needs
-internet once for this. If it can't reach GitHub, download the installer on another device and
-save it next to `sofa-remote` (or in Downloads); it's used from there, after the same check.
+no way to do it without one. The official ViGEmBus installer (v1.22.0, BSD-3-Clause) is built
+into the Windows exe, so no internet is needed: the first time a phone presses a gamepad button,
+sofa-remote checks the installer is validly signed by its publisher (Nefarius) and starts it.
+Approve the Windows prompt on the PC and press a button again. To do it ahead of time, run
+`sofa-remote --install-driver`. A ViGEmBus installer saved next to `sofa-remote` (or in Downloads)
+is used instead, and a build without the bundled one downloads it from
+[ViGEmBus releases](https://github.com/nefarius/ViGEmBus/releases).
 
 Linux, once:
 
@@ -182,6 +182,7 @@ To sign the APK in CI, add the repository secrets `ANDROID_KEYSTORE` (the keysto
 | `release.ps1`, `release.sh` | Build everything into `release/` |
 | `docs/` | Landing page (GitHub Pages: Settings › Pages › branch `main`, folder `/docs`) |
 | `brand/` | Logo, icons, colours and type ([brand guide](brand/README.md)) |
+| `vendor/fetch.ps1`, `build.rs` | Bundle the ViGEmBus installer into the Windows exe (`vendor/LICENSE-ViGEmBus.txt`) |
 | `web/icons.svg`, `web/icon-tags.json` | Lucide icon sprite and search words (ISC, `web/LICENSE-lucide.txt`) |
 | `legacy/remote.py` | The old Python server. It no longer matches the current web app |
 

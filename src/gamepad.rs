@@ -2,7 +2,8 @@
 //! controller per player instead of a shared keyboard.
 //!
 //! - Windows: through the ViGEmBus driver (https://github.com/nefarius/ViGEmBus/releases).
-//!   When it's missing, `driver::install` fetches the official installer and runs it.
+//!   When it's missing, `driver::install` runs the official installer (built into release
+//!   builds, else downloaded).
 //! - Linux: through uinput (/dev/uinput must be writable, see the README).
 //! - macOS: not available.
 //!
@@ -175,8 +176,9 @@ pub fn open(client: &str) -> Result<Option<u32>, String> {
 pub const DRIVER_MISSING: &str = "The PC needs the ViGEmBus gamepad driver";
 
 /// Getting the ViGEmBus driver onto the PC: an installer the user already saved (next to
-/// sofa-remote, in the current folder or in Downloads) is used first, else the official one is
-/// downloaded from GitHub. It's accepted only when Windows says it's validly signed by its
+/// sofa-remote, in the current folder or in Downloads) is used first, then the one built into
+/// the exe (release builds, see build.rs), else the official one is downloaded from GitHub. It's
+/// accepted only when Windows says it's validly signed by its
 /// publisher (Nefarius), then started; Windows asks for permission on the PC.
 #[cfg(windows)]
 pub mod driver {
@@ -189,6 +191,12 @@ pub mod driver {
     const URL: &str = "https://github.com/nefarius/ViGEmBus/releases/download/v1.22.0/ViGEmBus_1.22.0_x64_x86_arm64.exe";
     // Publisher of the ViGEmBus installer ("Nefarius Software Solutions e.U.")
     const SIGNER: &str = "Nefarius";
+
+    /// The official installer, built in when vendor/ has it (BSD-3-Clause, vendor/LICENSE-ViGEmBus.txt)
+    #[cfg(vigem_bundled)]
+    pub(super) const BUNDLED: Option<&[u8]> = Some(include_bytes!("../vendor/ViGEmBus_1.22.0_x64_x86_arm64.exe"));
+    #[cfg(not(vigem_bundled))]
+    const BUNDLED: Option<&[u8]> = None;
 
     static RUNNING: AtomicBool = AtomicBool::new(false);
     /// After a failed attempt, gamepad use doesn't start another one for a while (no prompt or
@@ -221,7 +229,10 @@ pub mod driver {
                 println!("Gamepads: using the driver installer {}", f.display());
                 (f, false)
             }
-            None => (download()?, true),
+            None => (match BUNDLED {
+                Some(bytes) => unpack(bytes)?,
+                None => download()?,
+            }, true),
         };
         if let Err(e) = check_signature(&file) {
             if downloaded {
@@ -259,12 +270,23 @@ pub mod driver {
         })
     }
 
+    fn temp_file() -> Result<PathBuf, String> {
+        let dir = std::env::temp_dir().join("sofa-remote");
+        std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+        Ok(dir.join("ViGEmBus_1.22.0_x64_x86_arm64.exe"))
+    }
+
+    /// Write the built-in installer to the temp folder.
+    pub(super) fn unpack(bytes: &[u8]) -> Result<PathBuf, String> {
+        let file = temp_file()?;
+        std::fs::write(&file, bytes).map_err(|e| format!("couldn't unpack the gamepad driver: {e}"))?;
+        Ok(file)
+    }
+
     /// Download the official installer to the temp folder: curl.exe (Windows 10 1803+) first,
     /// then PowerShell, which goes through the system proxy settings.
     fn download() -> Result<PathBuf, String> {
-        let dir = std::env::temp_dir().join("sofa-remote");
-        std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-        let file = dir.join("ViGEmBus_1.22.0_x64_x86_arm64.exe");
+        let file = temp_file()?;
         println!("Gamepads: downloading the ViGEmBus driver installer...");
         let curl = Command::new("curl.exe").args(["-fsL", "--retry", "2", "-o"]).arg(&file).arg(URL)
             .stderr(Stdio::null()).status().is_ok_and(|s| s.success());
@@ -436,5 +458,13 @@ mod tests {
         std::fs::write(&unsigned, b"not a program").unwrap();
         assert!(driver::check_signature(&unsigned).is_err());
         let _ = std::fs::remove_file(unsigned);
+    }
+
+    #[cfg(vigem_bundled)]
+    #[test]
+    fn bundled_driver_installer_is_the_signed_one() {
+        let file = driver::unpack(driver::BUNDLED.unwrap()).unwrap();
+        assert_eq!(driver::check_signature(&file), Ok(()));
+        let _ = std::fs::remove_file(file);
     }
 }

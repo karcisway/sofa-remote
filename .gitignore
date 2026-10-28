@@ -23,3 +23,6 @@ android/*.keystore
 
 # Local tooling
 .claude/
+
+# Bundled into the Windows exe at build time (vendor/fetch.ps1)
+/vendor/*.exe

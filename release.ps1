@@ -17,6 +17,8 @@ function Step($name) { Write-Host "`n== $name" -ForegroundColor Cyan }
 
 if ('windows' -notin $Skip) {
     Step 'Windows'
+    # Bundles the gamepad driver installer into the exe; without it the exe downloads it on first use
+    try { & (Join-Path $root 'vendor/fetch.ps1') } catch { Write-Warning "Gamepad driver not bundled: $_" }
     cargo build --release
     if ($LASTEXITCODE) { throw 'cargo build failed' }
     Copy-Item target/release/sofa-remote.exe (Join-Path $out 'sofa-remote-windows-x64.exe') -Force
