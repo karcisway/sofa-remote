@@ -27,6 +27,23 @@ const asList = v => (Array.isArray(v) ? v : [v]);
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const rid = () => Math.random().toString(36).slice(2, 9);
 
+// Themes (colour sets in app.css, [data-theme]); the choice is stored on this phone.
+const THEMES = [
+  { id: 'night', name: 'Night', dark: true, colors: ['#0e0f13', '#1a1c23', '#4f8cff'] },
+  { id: 'light', name: 'Light', colors: ['#f2f3f7', '#ffffff', '#3d7bff'] },
+  { id: 'bubblegum', name: 'Bubblegum', colors: ['#fff0f6', '#ffd9ea', '#ff4f9a'] },
+  { id: 'grape', name: 'Grape', dark: true, colors: ['#15101d', '#322447', '#b57bff'] },
+  { id: 'mint', name: 'Mint', colors: ['#ecf9f3', '#d2f1e3', '#14a874'] },
+];
+function applyTheme(id) {
+  const theme = THEMES.find(t => t.id === id) || THEMES[0];
+  if (theme.id === 'night') delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = theme.id;
+  document.querySelector('meta[name=theme-color]')?.setAttribute('content', theme.colors[0]);
+  return theme.id;
+}
+applyTheme(store.get('theme', 'night'));
+
 // Icons: "lucide:play" is a Lucide icon from icons.svg (https://lucide.dev, ~1900 of them);
 // anything else (emoji, "F5", "Esc") is shown as text.
 const ICON_PREFIX = 'lucide:';
@@ -1346,6 +1363,12 @@ const app = {
       h('p', { class: 'note' }, 'Run sofa-remote on another PC and paste the link it prints, then pick it with the device button at the top. Any button can also target another PC or all of them (“Sends to” when editing). Latency: min/median/max round trip.'),
       check('Open the keyboard when a text field is selected on the PC', h('input', { type: 'checkbox', checked: store.get('autoKb', true),
         onchange: e => { store.set('autoKb', e.target.checked); if (!e.target.checked) this.hideKeyBar(); } })),
+      h('h2', {}, 'Look'),
+      h('div', { class: 'themes' }, THEMES.map(t => h('button', {
+        class: 'theme' + ((store.get('theme', 'night') === t.id) ? ' on' : ''),
+        style: `--t-bg:${t.colors[0]};--t-fg:${t.dark ? '#e8e9ee' : '#1b1d24'}`,
+        onclick: () => { store.set('theme', applyTheme(t.id)); this.render(); },
+      }, h('span', { class: 'swatch' }, t.colors.map(c => h('i', { style: `--c:${c}` }))), t.name))),
       this.phoneButtonSettings(),
       h('h2', {}, 'Latency'),
       check('Show latency on screen', h('input', { type: 'checkbox', checked: store.get('showPing', false),
