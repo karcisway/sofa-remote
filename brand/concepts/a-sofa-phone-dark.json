@@ -1,0 +1,11 @@
+{
+  "prompt": "Recolour this exact logo for use on a dark background: keep the identical shapes and composition; make the navy sofa frame, armrests and legs soft off-white (#e8e9ee), keep the blue phone-screen backrest (#4f8cff) and the amber cushions (#ffb547), keep the white notch line inside the screen darker navy instead. Plain flat pure black background (#000000), one solid colour, no checkerboard, no grid, no gradient, no shadow, no text.",
+  "model": "gpt-image-2",
+  "size": "1024x1024",
+  "quality": "high",
+  "background": "auto",
+  "edit": [
+    "a-sofa-phone.png"
+  ],
+  "sha256": "f0582e013ce94ba5f11a5150632449de0e4c6449bef9b930fa7ca0bfbf9caf07"
+}

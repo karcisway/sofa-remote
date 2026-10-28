@@ -1,0 +1,9 @@
+{
+  "prompt": "Minimal flat vector logo mark: a soft rounded square like a plump sofa cushion in bright blue (#4f8cff), with a single large white play-pause button symbol in the middle and a small warm amber (#ffb547) signal arc in the top right corner, like a remote control sending a signal. Bold, geometric, friendly, centred, legible at 32px. Plain flat pure white background, one solid colour, absolutely no checkerboard pattern, no grid, no gradient background, no shadow, no text, no letters, no words.",
+  "model": "gpt-image-2",
+  "size": "1024x1024",
+  "quality": "medium",
+  "background": "auto",
+  "edit": [],
+  "sha256": "9d70426074f2ef5974e2fed0047d056e8f8989b2524485eb3ac68bc2a62f63ea"
+}

@@ -1,0 +1,9 @@
+{
+  "prompt": "Minimal flat vector logo mark: a rounded sofa silhouette in bright blue (#4f8cff) with a small game-controller d-pad cross and a play triangle cut out of the backrest, warm amber (#ffb547) seat cushion. Geometric, chunky, friendly, rounded corners, centred, symmetric, legible at 32px. Plain flat pure white background, one solid colour, absolutely no checkerboard pattern, no grid, no gradient background, no shadow, no text, no letters, no words.",
+  "model": "gpt-image-2",
+  "size": "1024x1024",
+  "quality": "medium",
+  "background": "auto",
+  "edit": [],
+  "sha256": "c4857d241da9689904c27dc635f8cc7c019b2ad410c257d5e89a176049d1fba9"
+}

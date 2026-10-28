@@ -1,0 +1,9 @@
+{
+  "prompt": "Flat vector illustration for a website hero, wide: a cozy dim living room at night, a person relaxing on a navy sofa with amber cushions, holding a smartphone glowing bright blue (#4f8cff); in front of them a large TV/monitor showing an abstract colourful game scene, soft blue light rays connecting phone and screen. Deep navy-black palette (#0e0f13, #151a2e) with bright blue and warm amber (#ffb547) accents, minimal geometric shapes, gentle grain, no text, no letters, no logos, no UI text.",
+  "model": "gpt-image-2",
+  "size": "1536x1024",
+  "quality": "high",
+  "background": "auto",
+  "edit": [],
+  "sha256": "0baea61f0949443b13d20ba8a34fa77796bd22f9dedd2f9848c802bc74c07607"
+}

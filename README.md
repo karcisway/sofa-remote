@@ -1,3 +1,5 @@
+<p align="center"><img src="brand/logo-256.png" width="128" alt="Sofa Remote logo"></p>
+
 # Sofa Remote
 
 Control a PC (Windows, Linux, macOS) from your phone: media keys, volume, touchpad, live
@@ -164,6 +166,8 @@ To sign the APK in CI, add the repository secrets `ANDROID_KEYSTORE` (the keysto
 | `android/` | Android app (Kotlin): the web app in a WebView, plus volume buttons |
 | `default_layouts.json` | Built-in layouts, also embedded |
 | `release.ps1`, `release.sh` | Build everything into `release/` |
+| `docs/` | Landing page (GitHub Pages: Settings › Pages › branch `main`, folder `/docs`) |
+| `brand/` | Logo, icons, colours and type ([brand guide](brand/README.md)) |
 | `legacy/remote.py` | The old Python server. It no longer matches the current web app |
 
 Next to the executable (or in `--data`) at runtime:

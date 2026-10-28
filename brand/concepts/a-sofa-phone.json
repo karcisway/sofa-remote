@@ -1,0 +1,9 @@
+{
+  "prompt": "Minimal flat vector app logo mark: a cozy rounded two-seat sofa seen from the front, whose backrest is shaped like a smartphone screen glowing bright blue (#4f8cff); sofa body in deep navy ink (#151a2e) with a warm amber (#ffb547) cushion accent. Bold geometric shapes, thick rounded corners, perfectly centred, symmetric, works at 32px. Plain flat pure white background, one solid colour, absolutely no checkerboard pattern, no grid, no gradient background, no shadow, no text, no letters, no words.",
+  "model": "gpt-image-2",
+  "size": "1024x1024",
+  "quality": "medium",
+  "background": "auto",
+  "edit": [],
+  "sha256": "2c506e18db846e94c5e604132543624c7c571adfa76116cdb6653129944e56a2"
+}

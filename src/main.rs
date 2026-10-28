@@ -35,6 +35,7 @@ const ASSETS: &[(&str, &str, &str)] = &[
     ("app.js", "text/javascript; charset=utf-8", include_str!("../web/app.js")),
     ("app.css", "text/css; charset=utf-8", include_str!("../web/app.css")),
 ];
+const ICON: &[u8] = include_bytes!("../web/icon.png");
 
 struct App {
     token: String,
@@ -96,6 +97,10 @@ fn asset(name: &str) -> Option<Response> {
 // Only /api/self and /ws need it.
 async fn index() -> Response {
     asset("index.html").unwrap()
+}
+
+async fn icon() -> Response {
+    ([(header::CONTENT_TYPE, "image/png"), (header::CACHE_CONTROL, "max-age=86400")], ICON).into_response()
 }
 
 async fn static_file(Path(file): Path<String>) -> Response {
@@ -521,6 +526,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/", get(index))
         .route("/ws", get(ws_upgrade))
         .route("/api/self", get(api_self))
+        .route("/icon.png", get(icon))
         .route("/{file}", get(static_file))
         .with_state(app.clone());
 
