@@ -36,8 +36,10 @@ jobs:
         if: ${{ contains(matrix.target, 'windows') }}
         run: pwsh -NoProfile -File vendor/fetch.ps1
       - run: cargo test --release --target ${{ matrix.target }}
+        env: { SOFA_REQUIRE_DRIVER: 1 }
         if: ${{ !contains(matrix.target, 'x86_64-apple') }}
       - run: cargo build --release --target ${{ matrix.target }}
+        env: { SOFA_REQUIRE_DRIVER: 1 }
       - name: Collect binary
         shell: bash
         run: |
@@ -90,6 +92,18 @@ jobs:
           f=ViGEmBus_1.22.0_x64_x86_arm64.exe
           curl -fsSL -o "release/$f" "https://github.com/nefarius/ViGEmBus/releases/download/v1.22.0/$f"
           echo "89220a7865076b342892f98865f3499fb7c4cfd673159e89d352c360fd014c6a  release/$f" | sha256sum -c
+      - name: Check every download is there
+        # The full set, or no release at all (the list is also in AGENTS.md)
+        run: |
+          for f in sofa-remote-windows-x64.exe sofa-remote-linux-x64 sofa-remote-linux-arm64 \
+                   sofa-remote-macos-arm64 sofa-remote-macos-x64 sofa-remote-android.apk \
+                   ViGEmBus_1.22.0_x64_x86_arm64.exe; do
+            test -s "release/$f" || { echo "::error::release/$f is missing"; exit 1; }
+          done
+          # the Windows exe has the driver installer built in (about 6 MB of it)
+          test "$(stat -c %s release/sofa-remote-windows-x64.exe)" -gt 9000000 \
+            || { echo "::error::sofa-remote-windows-x64.exe has no bundled driver installer"; exit 1; }
+          ls -l release
       - uses: softprops/action-gh-release@v2
         with:
           files: release/*
