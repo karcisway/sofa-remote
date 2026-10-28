@@ -67,7 +67,7 @@ within 30 seconds it gets the same controller back, so the game doesn't drop the
 **Windows driver:** a virtual controller that games can see needs a kernel driver; Windows has
 no way to do it without one. The official ViGEmBus installer (v1.22.0, BSD-3-Clause) is built
 into the Windows exe, so no internet is needed: the first time a phone presses a gamepad button,
-sofa-remote checks the installer is validly signed by its publisher (Nefarius) and starts it.
+sofa-remote checks it's the known installer (its SHA-256, or a valid Nefarius signature) and starts it.
 Approve the Windows prompt on the PC and press a button again. To do it ahead of time, run
 `sofa-remote --install-driver`. A ViGEmBus installer saved next to `sofa-remote` (or in Downloads)
 is used instead, and a build without the bundled one downloads it from

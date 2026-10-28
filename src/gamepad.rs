@@ -178,8 +178,8 @@ pub const DRIVER_MISSING: &str = "The PC needs the ViGEmBus gamepad driver";
 /// Getting the ViGEmBus driver onto the PC: an installer the user already saved (next to
 /// sofa-remote, in the current folder or in Downloads) is used first, then the one built into
 /// the exe (release builds, see build.rs), else the official one is downloaded from GitHub. It's
-/// accepted only when Windows says it's validly signed by its
-/// publisher (Nefarius), then started; Windows asks for permission on the PC.
+/// accepted only when it's the known v1.22.0 file (SHA-256) or Windows says it's validly signed
+/// by its publisher (Nefarius), then started; Windows asks for permission on the PC.
 #[cfg(windows)]
 pub mod driver {
     use std::path::{Path, PathBuf};
@@ -189,6 +189,8 @@ pub mod driver {
     use std::time::{Duration, Instant};
 
     const URL: &str = "https://github.com/nefarius/ViGEmBus/releases/download/v1.22.0/ViGEmBus_1.22.0_x64_x86_arm64.exe";
+    // SHA-256 of that file (also in vendor/fetch.ps1)
+    const SHA256: &str = "89220A7865076B342892F98865F3499FB7C4CFD673159E89D352C360FD014C6A";
     // Publisher of the ViGEmBus installer ("Nefarius Software Solutions e.U.")
     const SIGNER: &str = "Nefarius";
 
@@ -234,7 +236,7 @@ pub mod driver {
                 None => download()?,
             }, true),
         };
-        if let Err(e) = check_signature(&file) {
+        if let Err(e) = verify(&file) {
             if downloaded {
                 let _ = std::fs::remove_file(&file);
             }
@@ -300,6 +302,14 @@ pub mod driver {
             Err(format!("couldn't download the gamepad driver from github.com. Get it on any device from \
                  {URL} and run it on this PC, or save it next to sofa-remote and use a gamepad again."))
         }
+    }
+
+    /// The known v1.22.0 installer is accepted by its hash; anything else needs the signature. The
+    /// hash comes first because the signature check can fail on PCs that can't reach the
+    /// certificate revocation servers (CRYPT_E_REVOCATION_OFFLINE).
+    pub(super) fn verify(file: &Path) -> Result<(), String> {
+        let hash = powershell(&format!("(Get-FileHash -Algorithm SHA256 -LiteralPath '{}').Hash", file.display()))?;
+        if hash.eq_ignore_ascii_case(SHA256) { Ok(()) } else { check_signature(file) }
     }
 
     /// Accept the file only with a valid Authenticode signature from the driver's publisher.
@@ -462,9 +472,9 @@ mod tests {
 
     #[cfg(vigem_bundled)]
     #[test]
-    fn bundled_driver_installer_is_the_signed_one() {
+    fn bundled_driver_installer_is_accepted() {
         let file = driver::unpack(driver::BUNDLED.unwrap()).unwrap();
-        assert_eq!(driver::check_signature(&file), Ok(()));
+        assert_eq!(driver::verify(&file), Ok(()));
         let _ = std::fs::remove_file(file);
     }
 }
