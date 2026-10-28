@@ -27,6 +27,24 @@ const asList = v => (Array.isArray(v) ? v : [v]);
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const rid = () => Math.random().toString(36).slice(2, 9);
 
+// Icons: "lucide:play" is a Lucide icon from icons.svg (https://lucide.dev, ~1900 of them);
+// anything else (emoji, "F5", "Esc") is shown as text.
+const ICON_PREFIX = 'lucide:';
+function svgIcon(name) {
+  const NS = 'http://www.w3.org/2000/svg', svg = document.createElementNS(NS, 'svg'), use = document.createElementNS(NS, 'use');
+  const attrs = { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2,
+    'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' };
+  for (const [k, v] of Object.entries(attrs)) svg.setAttribute(k, v);
+  use.setAttribute('href', 'icons.svg#' + name);
+  svg.append(use);
+  return svg;
+}
+function iconEl(spec, cls = 'ico') {
+  const s = spec == null ? '' : String(spec);
+  if (s.startsWith(ICON_PREFIX)) return h('span', { class: cls + ' svg-ico' }, svgIcon(s.slice(ICON_PREFIX.length)));
+  return h('span', { class: cls }, s);
+}
+
 // ------------------------------------------------------------------ servers
 
 // Binary fast path (see src/session.rs): [type u8][seq u16 LE][payload]
@@ -402,7 +420,7 @@ const WIDGET_TYPES = {
 const WIDGETS = {
   button(w, srv) {
     const el = h('button', { class: 'btn ' + (w.style || ''), style: w.color ? `background:${w.color}` : null },
-      w.icon ? h('span', { class: 'ico' }, w.icon) : null,
+      w.icon ? iconEl(w.icon) : null,
       w.label ? h('small', {}, w.label) : null);
     let action = typeof w.action === 'string' ? { key: w.action } : w.action;
     if (action && w.server && !action.server) action = { ...action, server: w.server };
@@ -583,7 +601,7 @@ const WIDGETS = {
 
     // Speech to text: words go into the field (and so live to the PC); partial results are
     // corrected as recognition goes, the same way keyboard autocorrect is.
-    const mic = h('button', { type: 'button', class: 'kbd-btn', title: 'Speak' }, '🎤');
+    const mic = h('button', { type: 'button', class: 'kbd-btn', title: 'Speak', 'aria-label': 'Speak' }, iconEl('lucide:mic'));
     const spoken = text => {
       input.value = spokenBase + text;
       input.dispatchEvent(new Event('input'));
@@ -600,7 +618,7 @@ const WIDGETS = {
       if (stopSpeech) mic.classList.add('listening');
       else { input.focus(); app.status('Voice input needs the Android app or an https page: use the 🎤 key on your phone keyboard instead', true); }
     });
-    const enter = h('button', { type: 'button', class: 'kbd-btn accent', title: 'Send (Enter)', onclick: submit }, '⏎');
+    const enter = h('button', { type: 'button', class: 'kbd-btn accent', title: 'Send (Enter)', 'aria-label': 'Send (Enter)', onclick: submit }, iconEl('lucide:corner-down-left'));
     // keep the phone keyboard open when tapping the buttons
     for (const b of [mic, enter]) b.addEventListener('pointerdown', e => document.activeElement === input && e.preventDefault());
     return h('div', { class: 'kbd' }, input, mic, enter);
@@ -703,7 +721,7 @@ function renderLayout(srv, layout, editing) {
     grid.append(box);
   });
   if (!layout.widgets || !layout.widgets.length)
-    grid.append(h('div', { class: 'placeholder', style: 'grid-column:1/-1' }, editing ? 'Empty layout: tap “+ Widget”.' : 'Empty layout: tap ✎ to add widgets.'));
+    grid.append(h('div', { class: 'placeholder', style: 'grid-column:1/-1' }, editing ? 'Empty layout: tap “+ Widget”.' : 'Empty layout: tap the pencil to add widgets.'));
   return grid;
 }
 
@@ -860,12 +878,50 @@ function serverSelect(current, owner) {
   return sel;
 }
 
+// Icon field for the editor: free text (emoji, "F5") or a Lucide icon picked from a searchable grid.
+let iconTags = null;   // icon name -> search words, loaded on first use
+const loadIconTags = () => (iconTags ??= fetch('icon-tags.json').then(r => r.json()).catch(() => ({})));
+const POPULAR_ICONS = ['play', 'pause', 'skip-back', 'skip-forward', 'rewind', 'fast-forward', 'volume-2', 'volume-1',
+  'volume-x', 'mic', 'tv', 'monitor', 'maximize', 'power', 'moon', 'sun', 'house', 'search', 'gamepad-2', 'joystick',
+  'crosshair', 'flame', 'zap', 'keyboard', 'mouse-pointer-click', 'arrow-up', 'arrow-down', 'arrow-left', 'arrow-right',
+  'chevron-up', 'chevron-down', 'corner-down-left', 'delete', 'space', 'copy', 'clipboard-paste', 'undo-2', 'redo-2',
+  'refresh-cw', 'x', 'check', 'heart', 'star', 'sparkles', 'music', 'film', 'camera', 'lock'];
+function iconPicker(input) {
+  const preview = h('span', { class: 'preview' });
+  const showPreview = () => preview.replaceChildren(input.value ? iconEl(input.value) : '');
+  const search = h('input', { type: 'search', placeholder: 'Search: play, volume, arrow, heart…', autocapitalize: 'off', autocomplete: 'off' });
+  const grid = h('div', { class: 'icon-grid' });
+  const panel = h('div', { class: 'icon-picker', hidden: true }, search, grid);
+  const render = async () => {
+    const tags = await loadIconTags(), q = search.value.trim().toLowerCase();
+    let names = POPULAR_ICONS;
+    if (q) {
+      const rank = n => n === q ? 0 : n.startsWith(q) ? 1 : n.includes(q) ? 2 : tags[n].some(t => t.includes(q)) ? 3 : 9;
+      names = Object.keys(tags).map(n => [rank(n), n]).filter(([r]) => r < 9).sort((a, b) => a[0] - b[0]).map(([, n]) => n);
+    }
+    const shown = names.slice(0, 120);
+    grid.replaceChildren(...shown.map(n => h('button', { type: 'button', title: n, 'aria-label': n,
+      class: input.value === ICON_PREFIX + n ? 'on' : null,
+      onclick: () => { input.value = ICON_PREFIX + n; showPreview(); render(); } }, svgIcon(n))),
+      ...(names.length > shown.length ? [h('div', { class: 'more' }, `${names.length - shown.length} more: type to narrow down`)] : []),
+      ...(names.length ? [] : [h('div', { class: 'more' }, 'No icon found')]));
+  };
+  search.addEventListener('input', render);
+  input.addEventListener('input', showPreview);
+  showPreview();
+  const toggle = h('button', { type: 'button', class: 'small', onclick: () => {
+    panel.hidden = !panel.hidden;
+    if (!panel.hidden) { render(); search.focus(); }
+  } }, 'Icons');
+  return h('div', {}, h('div', { class: 'icon-field' }, preview, input, toggle), panel);
+}
+
 function openWidgetSheet(layout, w, isNew = false) {
   const owner = app.edit.srv;
   const [kind0, value0] = actionToFields(w.action);
   const type = h('select', {}, Object.entries(WIDGET_TYPES).map(([k, t]) => h('option', { value: k, selected: k === (w.type || 'button') }, t.name)));
   const label = h('input', { value: w.label || '', placeholder: 'shown under the icon' });
-  const icon = h('input', { value: w.icon || '', placeholder: 'emoji or short text, e.g. ⏯ or F5' });
+  const icon = h('input', { value: w.icon || '', placeholder: 'pick one, or type text: F5' });
   const style = h('select', {}, ['', 'accent', 'dark'].map(s => h('option', { value: s, selected: (w.style || '') === s }, s || 'default')));
   const color = h('input', { value: w.color || '', placeholder: 'any CSS colour, e.g. #8a2be2' });
   const ww = h('input', { type: 'number', min: 1, max: layout.cols || 12, value: w.w || 1 });
@@ -879,7 +935,7 @@ function openWidgetSheet(layout, w, isNew = false) {
   const adv = h('textarea', { class: 'code', style: 'min-height:180px' }, advInitial);
 
   const valueField = field('Value', value), customField = field('Action JSON', custom);
-  const buttonFields = h('div', { style: 'display:contents' }, field('Icon', icon), field('Style', style), field('Colour', color),
+  const buttonFields = h('div', { style: 'display:contents' }, field('Icon', iconPicker(icon)), field('Style', style), field('Colour', color),
     field('Action', kind), valueField, customField, check('Repeat while held', repeat));
   const sync = () => {
     const isButton = type.value === 'button';
@@ -940,7 +996,7 @@ function openWidgetSheet(layout, w, isNew = false) {
 function openLayoutSheet(layout) {
   const { srv, draft } = app.edit;
   const name = h('input', { value: layout.name || '' });
-  const icon = h('input', { value: layout.icon || '', placeholder: 'emoji shown on the tab, e.g. 🎮' });
+  const icon = h('input', { value: layout.icon || '', placeholder: 'pick one, or an emoji' });
   const cols = h('input', { type: 'number', min: 1, max: 24, value: layout.cols || 12 });
   const rowHeight = h('input', { type: 'number', min: 30, max: 300, value: layout.rowHeight || 64 });
   const fit = h('input', { type: 'checkbox', checked: !!layout.fit });
@@ -955,7 +1011,7 @@ function openLayoutSheet(layout) {
     closeSheet(); app.render();
   };
   const body = h('div', { style: 'display:flex;flex-direction:column;gap:10px' },
-    h('div', { class: 'pair' }, field('Name', name), field('Tab icon', icon)),
+    field('Name', name), field('Tab icon', iconPicker(icon)),
     h('div', { class: 'pair' }, field('Columns', cols), field('Row height (px)', rowHeight)),
     check('Fit the screen (fixed rows, no scrolling: for gamepads)', fit),
     field('Rows when fitting', rows),
@@ -1240,9 +1296,9 @@ const app = {
     nav.replaceChildren(
       ...this.tabs().map(t => h('button', { class: (t.id === cur ? 'active' : '') + (t.srv.online ? '' : ' off'),
         onclick: () => this.show(t.id), title: t.label, 'aria-label': t.label },
-        h('span', { class: 'tab-ico' }, t.icon), h('span', { class: 'tab-name' }, t.label))),
+        iconEl(t.icon, 'tab-ico'), h('span', { class: 'tab-name' }, t.label))),
       h('button', { class: cur === 'settings' ? 'active' : '', onclick: () => this.show('settings'), 'aria-label': 'Settings', title: 'Settings' },
-        h('span', { class: 'tab-ico' }, '⚙')));
+        iconEl('lucide:settings', 'tab-ico')));
     this.fitTabs();
   },
   // Full labels when they fit; icons only when they don't; scroll if even icons don't fit.
@@ -1305,9 +1361,9 @@ const app = {
           .map(([v, n]) => h('option', { value: v, selected: store.get('wake', 'active') === v }, n)))),
       h('p', { class: 'note' }, 'Inputs travel as a few binary bytes. WebRTC uses UDP: a lost Wi-Fi packet doesn’t hold up the ones behind it (with TCP it can stall for 100 ms+), and each key event is sent three times so one loss doesn’t matter. Keep-awake sends a tiny packet only when nothing else went out for 80 ms, so the phone’s Wi-Fi doesn’t doze off between your taps. The round trip shown includes the reply’s way back, which phones delay the most; your input only takes the one-way half. For the lowest numbers: 5 GHz Wi-Fi, PC on Ethernet, and on a Wi-Fi PC set the adapter’s power saving to “Maximum performance”.'),
       h('h2', {}, 'Layouts'),
-      h('p', { class: 'note' }, 'Open a tab and tap ✎: drag widgets to move them, drag the blue dot to resize, tap one to change what it does. “+ Widget” adds buttons, joysticks, touchpads and more. Save stores the layouts on that PC (layouts.json), replacing its default template; JSON › Reset brings the default back.'),
+      h('p', { class: 'note' }, 'Open a tab and tap the pencil: drag widgets to move them, drag the blue dot to resize, tap one to change what it does. “+ Widget” adds buttons, joysticks, touchpads and more. Save stores the layouts on that PC (layouts.json), replacing its default template; JSON › Reset brings the default back.'),
       h('h2', {}, 'Gaming'),
-      h('p', { class: 'note' }, 'Use “Hold key” and “Hold mouse button” actions so keys stay down while your finger does, and joysticks for WASD or mouse-look. Several fingers work at once. ⛶ goes fullscreen; layouts set to “fit” then fill the whole screen.'),
+      h('p', { class: 'note' }, 'Use “Hold key” and “Hold mouse button” actions so keys stay down while your finger does, and joysticks for WASD or mouse-look. Several fingers work at once. The expand button goes fullscreen; layouts set to “fit” then fill the whole screen.'),
       h('button', { class: 'wide', onclick: () => { releaseEverything(); this.status('Released all keys', false, true); } }, 'Release all held keys'));
   },
 
@@ -1320,7 +1376,7 @@ const app = {
     if (this.keyBarSrv !== srv) {
       this.keyBarSrv = srv;
       bar.replaceChildren(WIDGETS.keyboard({ label: 'Typing on ' + srv.label }, srv),
-        h('button', { class: 'small', onclick: () => this.hideKeyBar() }, '✕'));
+        h('button', { class: 'small', 'aria-label': 'Close', onclick: () => this.hideKeyBar() }, iconEl('lucide:x')));
     }
     bar.hidden = false;
     $('input', bar).focus({ preventScroll: true });   // browsers may need a tap on it to open the keyboard
@@ -1382,7 +1438,7 @@ const app = {
     btn.hidden = !this.servers.length || (this.servers.length < 2 && !!dev);
     btn.replaceChildren(
       h('span', { class: 'dot' + (dev ? (dev.online ? ' on' : '') : ' on'), style: dev ? null : 'background:var(--acc)' }),
-      h('span', {}, dev ? dev.label : 'All'), '▾');
+      h('span', {}, dev ? dev.label : 'All'), iconEl('lucide:chevron-down'));
     // Offline is always shown; the latency only if enabled
     const srv = this.currentServer(), el = $('#ping');
     if (srv && !srv.online) { el.hidden = false; el.textContent = '○ offline'; el.className = 'err'; }

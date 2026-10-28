@@ -8,6 +8,25 @@ button { font:inherit; color:inherit; border:0; cursor:pointer; }
 
 header { display:flex; align-items:center; gap:6px; padding:8px 12px; flex:none; }
 .icon { background:var(--card); width:40px; height:40px; border-radius:12px; font-size:18px; flex:none; }
+/* Lucide icons: sized by the surrounding font size, coloured by the text colour */
+.svg-ico { display:inline-flex; }
+.svg-ico svg, button.icon svg { width:1.15em; height:1.15em; display:block; }
+button.icon { display:inline-grid; place-items:center; }
+.btn .svg-ico svg { width:1.2em; height:1.2em; stroke-width:2.2; }
+.small .svg-ico { vertical-align:-2px; }
+/* icon picker in the editor */
+.icon-field { display:flex; gap:8px; align-items:center; }
+.icon-field input { flex:1; min-width:0; }
+.icon-field .preview { width:44px; height:44px; flex:none; display:grid; place-items:center; border-radius:12px;
+  background:var(--bg); font-size:22px; }
+.icon-picker { margin-top:8px; }
+.icon-picker[hidden] { display:none; }
+.icon-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(46px, 1fr)); gap:6px; max-height:260px;
+  overflow-y:auto; margin-top:8px; padding:2px; }
+.icon-grid button { aspect-ratio:1; border-radius:10px; background:var(--card2); color:var(--fg); display:grid;
+  place-items:center; font-size:20px; }
+.icon-grid button.on { outline:2px solid var(--acc); }
+.icon-grid .more { grid-column:1/-1; aspect-ratio:auto; font-size:13px; color:var(--dim); background:none; }
 .editing #btn-edit { background:var(--acc); }
 .chip { background:var(--card); height:40px; border-radius:12px; padding:0 10px; font-size:14px; display:flex; align-items:center;
         gap:6px; max-width:28vw; flex:none; }

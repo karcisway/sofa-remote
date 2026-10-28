@@ -34,6 +34,9 @@ const ASSETS: &[(&str, &str, &str)] = &[
     ("index.html", "text/html; charset=utf-8", include_str!("../web/index.html")),
     ("app.js", "text/javascript; charset=utf-8", include_str!("../web/app.js")),
     ("app.css", "text/css; charset=utf-8", include_str!("../web/app.css")),
+    // Lucide icons (ISC, web/LICENSE-lucide.txt): "icon": "lucide:<name>" in layouts
+    ("icons.svg", "image/svg+xml", include_str!("../web/icons.svg")),
+    ("icon-tags.json", "application/json", include_str!("../web/icon-tags.json")),
 ];
 const ICON: &[u8] = include_bytes!("../web/icon.png");
 

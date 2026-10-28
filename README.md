@@ -177,6 +177,7 @@ To sign the APK in CI, add the repository secrets `ANDROID_KEYSTORE` (the keysto
 | `release.ps1`, `release.sh` | Build everything into `release/` |
 | `docs/` | Landing page (GitHub Pages: Settings › Pages › branch `main`, folder `/docs`) |
 | `brand/` | Logo, icons, colours and type ([brand guide](brand/README.md)) |
+| `web/icons.svg`, `web/icon-tags.json` | Lucide icon sprite and search words (ISC, `web/LICENSE-lucide.txt`) |
 | `legacy/remote.py` | The old Python server. It no longer matches the current web app |
 
 Next to the executable (or in `--data`) at runtime:
@@ -214,6 +215,10 @@ in px. `fit: true` + `rows` makes a fixed grid that fills the screen (good for g
 `landscape: true` rotates the screen in fullscreen.
 
 **Widget fields:** `type`, `x`, `y`, `w`, `h` (in grid cells), `label`, and `server` (see below).
+
+**Icons:** `"icon": "lucide:play"` uses one of the ~1,900 [Lucide](https://lucide.dev/icons) icons
+(built in, so they work offline); in the editor tap **Icons** to search them. Any other text
+(`"F5"`, `"Esc"`, an emoji) is shown as is. Layout tab icons work the same way.
 
 | type | extra fields |
 | --- | --- |
