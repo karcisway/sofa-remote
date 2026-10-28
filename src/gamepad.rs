@@ -76,6 +76,19 @@ struct Entry {
 }
 
 impl Entry {
+    fn open(&mut self) -> Result<Option<u32>, String> {
+        self.retry_at = None;
+        let state = self.state;
+        let result = self.ensure().and_then(|pad| {
+            pad.update(&state)?;
+            Ok(pad.player())
+        });
+        if result.is_err() {
+            self.pad = None;
+        }
+        result
+    }
+
     fn ensure(&mut self) -> Result<&mut Box<dyn VirtualPad>, String> {
         if self.pad.is_none() {
             if self.retry_at.is_some_and(|t| Instant::now() < t) {
@@ -125,13 +138,7 @@ fn run(rx: Receiver<Msg>) {
             Ok(Msg::Update(c, state)) => pads.entry(c).or_default().set(state),
             Ok(Msg::Open(c, reply)) => {
                 let e = pads.entry(c).or_insert_with(|| Entry { idle_since: Some(Instant::now()), ..Default::default() });
-                e.retry_at = None;
-                let state = e.state;
-                let r = e.ensure().and_then(|pad| {
-                    pad.update(&state)?;
-                    Ok(pad.player())
-                });
-                let _ = reply.send(r);
+                let _ = reply.send(e.open());
             }
             Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {}
             Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => return,
@@ -357,12 +364,37 @@ pub mod driver {
 #[cfg(windows)]
 mod platform {
     use super::{PadState, VirtualPad};
+    use std::time::{Duration, Instant};
     use vigem_client::{Client, TargetId, XButtons, XGamepad, Xbox360Wired};
 
     struct Pad(Xbox360Wired<Client>);
 
+    pub(super) fn submit_with_retry(mut submit: impl FnMut() -> Result<(), vigem_client::Error>) -> Result<(), String> {
+        let deadline = Instant::now() + Duration::from_millis(100);
+        loop {
+            match submit() {
+                Ok(()) => return Ok(()),
+                // ViGEmBus returns ERROR_NO_MORE_ITEMS when XInput has not queued
+                // its next USB read yet. Keep the controller and retry the report,
+                // including button releases, instead of unplugging it.
+                Err(vigem_client::Error::WinError(259) | vigem_client::Error::TargetNotReady)
+                    if Instant::now() < deadline => std::thread::sleep(Duration::from_millis(1)),
+                Err(e) => return Err(e.to_string()),
+            }
+        }
+    }
+
+    pub(super) fn connect_error(error: vigem_client::Error) -> String {
+        match error {
+            vigem_client::Error::BusNotFound => super::DRIVER_MISSING.to_string(),
+            vigem_client::Error::BusVersionMismatch =>
+                "The installed ViGEmBus driver is incompatible. Repair ViGEmBus 1.22.0 and restart the PC".into(),
+            other => format!("Cannot connect to the installed ViGEmBus driver: {other}"),
+        }
+    }
+
     pub fn create() -> Result<Box<dyn VirtualPad>, String> {
-        let client = Client::connect().map_err(|_| super::DRIVER_MISSING.to_string())?;
+        let client = Client::connect().map_err(connect_error)?;
         let mut pad = Xbox360Wired::new(client, TargetId::XBOX360_WIRED);
         pad.plugin().map_err(|e| format!("gamepad plug-in failed: {e}"))?;
         pad.wait_ready().map_err(|e| format!("gamepad not ready: {e}"))?;
@@ -380,7 +412,7 @@ mod platform {
                 thumb_rx: s.rx,
                 thumb_ry: s.ry,
             };
-            self.0.update(&g).map_err(|e| e.to_string())
+            submit_with_retry(|| self.0.update(&g))
         }
 
         fn player(&mut self) -> Option<u32> {
@@ -466,6 +498,109 @@ mod platform {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn failed_open_discards_a_stale_controller() {
+        struct Stale;
+        impl VirtualPad for Stale {
+            fn update(&mut self, _: &PadState) -> Result<(), String> { Err("controller disconnected".into()) }
+            fn player(&mut self) -> Option<u32> { Some(1) }
+        }
+        let mut entry = Entry { pad: Some(Box::new(Stale)), ..Default::default() };
+        assert_eq!(entry.open(), Err("controller disconnected".into()));
+        assert!(entry.pad.is_none());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn installed_driver_errors_do_not_request_reinstallation() {
+        use vigem_client::Error;
+        assert_eq!(platform::connect_error(Error::BusNotFound), DRIVER_MISSING);
+        for error in [Error::BusAccessFailed(5), Error::WinError(31), Error::BusVersionMismatch] {
+            let message = platform::connect_error(error);
+            assert_ne!(message, DRIVER_MISSING);
+            assert!(message.contains("ViGEmBus"));
+        }
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn busy_xinput_queue_retries_the_report_without_unplugging() {
+        use vigem_client::Error;
+        let mut results = [Err(Error::WinError(259)), Err(Error::TargetNotReady), Ok(())].into_iter();
+        assert_eq!(platform::submit_with_retry(|| results.next().unwrap()), Ok(()));
+        assert_eq!(platform::submit_with_retry(|| Err(Error::WinError(5))), Err("win error: 5".into()));
+        assert_eq!(platform::submit_with_retry(|| Err(Error::WinError(259))), Err("win error: 259".into()));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    #[ignore = "requires the installed ViGEmBus driver and two free XInput slots"]
+    fn windows_controller_reports_input() {
+        #[repr(C)]
+        #[derive(Default)]
+        struct State {
+            packet: u32,
+            gamepad: vigem_client::XGamepad,
+        }
+        #[link(name = "xinput1_4")]
+        unsafe extern "system" {
+            fn XInputGetState(index: u32, state: *mut State) -> u32;
+        }
+        let mut pad = platform::create().expect("create virtual controller");
+        let mut other = platform::create().expect("create a second virtual controller");
+        let other_state = PadState { buttons: 0x2000, rt: 77, rx: 12345, ..Default::default() };
+        other.update(&other_state).expect("send second controller state");
+        let deadline = Instant::now() + Duration::from_secs(2);
+        let other_index = loop {
+            let found = (0..4).find(|&slot| {
+                let mut actual = State::default();
+                (unsafe { XInputGetState(slot, &mut actual) }) == 0
+                    && actual.gamepad.buttons.raw == other_state.buttons
+                    && actual.gamepad.right_trigger == other_state.rt
+                    && actual.gamepad.thumb_rx == other_state.rx
+            });
+            if let Some(slot) = found { break slot; }
+            assert!(Instant::now() < deadline, "second controller did not receive input");
+            std::thread::sleep(Duration::from_millis(10));
+        };
+        let reported_player = pad.player();
+        let mut index = None;
+        let pressed = PadState { buttons: 0x1000, lt: 123, lx: -12345, ..Default::default() };
+        for (report, expected) in [pressed, PadState::default()].into_iter().cycle().take(128).enumerate() {
+            pad.update(&expected).expect("send controller state");
+            let deadline = Instant::now() + Duration::from_secs(2);
+            loop {
+                if index.is_none() {
+                    index = (0..4).find(|&slot| {
+                        let mut actual = State::default();
+                        (unsafe { XInputGetState(slot, &mut actual) }) == 0
+                            && actual.gamepad.buttons.raw == pressed.buttons
+                            && actual.gamepad.left_trigger == pressed.lt
+                            && actual.gamepad.thumb_lx == pressed.lx
+                    });
+                }
+                let mut actual = State::default();
+                let result = index.map(|slot| unsafe { XInputGetState(slot, &mut actual) }).unwrap_or(1167);
+                if result == 0 && actual.gamepad.buttons.raw == expected.buttons
+                    && actual.gamepad.left_trigger == expected.lt && actual.gamepad.thumb_lx == expected.lx {
+                    break;
+                }
+                assert!(Instant::now() < deadline, "XInput slot {index:?} did not receive report {report}, {expected:?}: {result}, packet {}, {:?}", actual.packet, actual.gamepad);
+                std::thread::sleep(Duration::from_millis(10));
+            }
+        }
+        if let Some(player) = reported_player {
+            assert_eq!(Some(player - 1), index);
+        }
+        assert_ne!(index, Some(other_index));
+        let mut actual = State::default();
+        assert_eq!(unsafe { XInputGetState(other_index, &mut actual) }, 0);
+        assert_eq!(actual.gamepad.buttons.raw, other_state.buttons);
+        assert_eq!(actual.gamepad.right_trigger, other_state.rt);
+        assert_eq!(actual.gamepad.thumb_rx, other_state.rx);
+        other.update(&PadState::default()).expect("release second controller");
+    }
 
     #[test]
     fn parses_wire_state() {

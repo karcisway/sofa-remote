@@ -81,8 +81,12 @@ sudo usermod -aG input $USER       # then log out and back in
 sudo modprobe uinput
 ```
 
-The first time you touch a controller button, the phone shows "Gamepad 2 connected" (the
-player number, on Windows) or an error saying what's missing.
+The first time you touch a controller button, the phone shows "Gamepad connected" (with a
+player number when the Windows driver supplies one) or an error saying what's missing.
+Failed connections retry on the next controller input after a two-second pause, including
+after installing the driver by hand. Driver access and version errors are reported separately
+from a missing driver. If the installer requests a restart, restart Windows first.
+Temporary XInput queue delays retry the same report without unplugging the controller.
 
 There are two built-in game tabs:
 

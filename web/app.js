@@ -118,6 +118,8 @@ class Server {
       this.mx = this.my = 0;   // the server's move totals start at 0 for each connection
       this.pad = newPad();
       this.padOpened = false;
+      this.padOpening = false;
+      this.padRetryAt = 0;
       this.request({ t: 'config_get' }).then(r => this.setConfig(r.config)).catch(() => {});
       app.refreshStatus();
     };
@@ -189,6 +191,7 @@ class Server {
       this.setConfig(m.config);
     } else if (m.t === 'pad_driver') {
       this.padOpened = false;   // the next press plugs the controller in (or offers the install again)
+      this.padRetryAt = 0;
       app.status(this.label + ': ' + (m.ok ? 'gamepad driver installed' : m.error), !m.ok, m.ok);
     } else if (m.t === 'focus') {
       app.onTextFocus(this, !!m.text);
@@ -243,11 +246,24 @@ class Server {
   padSet(changes) {
     if (!this.online) return app.status(this.label + ' is offline', true);
     app.noteActivity();
-    if (!this.padOpened) {
-      this.padOpened = true;
+    if (!this.padOpened && !this.padOpening && Date.now() >= this.padRetryAt) {
+      this.padOpening = true;
+      const ws = this.ws;
       this.request({ t: 'pad_open' }, 8000)
-        .then(r => app.status(r.player ? `Gamepad ${r.player} connected on ${this.label}` : `Gamepad connected on ${this.label}`, false, true))
-        .catch(e => app.status(this.label + ': ' + e.message, true));
+        .then(r => {
+          if (this.ws !== ws) return;
+          this.padOpened = true;
+          // Input may have changed while Windows was creating the controller.
+          this.padSet({});
+          app.status(r.player ? `Gamepad ${r.player} connected on ${this.label}` : `Gamepad connected on ${this.label}`, false, true);
+        })
+        .catch(e => {
+          if (this.ws !== ws) return;
+          this.padOpened = false;
+          this.padRetryAt = Date.now() + 2000;
+          app.status(this.label + ': ' + e.message, true);
+        })
+        .finally(() => { if (this.ws === ws) this.padOpening = false; });
     }
     const p = Object.assign(this.pad, changes);
     const v = new DataView(new ArrayBuffer(15));
