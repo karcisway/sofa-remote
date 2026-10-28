@@ -17,18 +17,31 @@
 
 ## Releases
 
-- Every GitHub Release carries the full set of downloads, rebuilt from the tag even when a part
-  didn't change: `sofa-remote-windows-x64.exe` (with the gamepad driver bundled),
-  `sofa-remote-linux-x64`, `sofa-remote-linux-arm64`, `sofa-remote-macos-arm64`,
-  `sofa-remote-macos-x64`, `sofa-remote-android.apk` and the gamepad driver installer
-  `ViGEmBus_1.22.0_x64_x86_arm64.exe`. Never publish a release with files
-  missing or upload single files by hand.
-- `.github/workflows/release.yml` does this: pushing a tag `vX.Y.Z` builds everything, and the
-  release is only created once every build passed. A new build target goes into that workflow
-  and this list.
-- To release: push main, then a new tag (never move or re-push an existing one). Then check the
-  run on GitHub Actions and that the release lists all seven files; macOS runners can queue for a
-  while, so the release may appear some minutes later.
+Every GitHub Release must let someone download everything and install it correctly, with
+nothing fetched from elsewhere. It carries all seven files, rebuilt from the tag even when a part
+didn't change:
+
+| File | What it must be |
+| --- | --- |
+| `sofa-remote-windows-x64.exe` | With the gamepad driver installer built in (about 11 MB; `SOFA_REQUIRE_DRIVER=1` makes the build fail without it) |
+| `sofa-remote-linux-x64`, `sofa-remote-linux-arm64` | |
+| `sofa-remote-macos-arm64`, `sofa-remote-macos-x64` | |
+| `sofa-remote-android.apk` | |
+| `ViGEmBus_1.22.0_x64_x86_arm64.exe` | The gamepad driver installer, SHA-256 checked |
+
+- `.github/workflows/release.yml` builds them when a tag `vX.Y.Z` is pushed. Its last step checks
+  the whole set (and the bundled driver) and creates no release when anything is missing. A new
+  download goes into that workflow's build, its check and this table.
+- Never publish a release with files missing, and never upload or replace single files by hand.
+- To release: run `cargo test --release` and build the APK locally first, push main, then push a
+  new tag (never move or re-push an existing one).
+- A release is done only when it's been checked: the tag's Actions run passed, and the release
+  page lists all seven files with sensible sizes. Tell the user the release link only then.
+  macOS runners can queue for a while, so this can take some minutes.
+- If the run fails, find the failing job and fix the cause, then release under a new tag.
+  Report the failure to the user; don't say a release is out when it isn't.
+- Before releasing a change to how something installs or starts (the driver installer, the
+  Android app), try that path for real once, or tell the user plainly it wasn't tried.
 
 ## Project
 
