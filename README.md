@@ -104,8 +104,9 @@ plus what a web page can't do:
 - The keyboard's 🎤 button works, using the phone's own speech recognizer. In a browser it only
   works on https pages; there, use the 🎤 key on the phone keyboard instead.
 - While the app is on screen it keeps the phone's Wi-Fi in low-latency mode (less mouse jitter).
-- **Exit:** press Back twice, or ⚙ › Exit the app. That also stops the volume buttons and the
-  media notification. Home leaves it running in the background.
+- **Exit:** press Back twice, ⚙ › Exit the app, or Exit in the notification. That also stops the
+  volume buttons and the media notification. Home leaves it running in the background.
+- When the PC can't be reached it says so, with Try again, Connect to another PC and Exit.
 
 First start: scan the PC's QR code from the app, or paste/share its link to the app. With
 "Keep working with the screen locked" on, it shows a media notification. Android sends the

@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.graphics.Color
 import android.graphics.Typeface
 import android.net.wifi.WifiManager
@@ -19,6 +20,8 @@ import android.view.WindowInsetsController
 import android.view.inputmethod.InputMethodManager
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
+import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Button
@@ -59,12 +62,13 @@ class MainActivity : Activity() {
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
         }
+        if (intent?.action == ACTION_EXIT) return exitApp()
         if (!handleShare(intent)) Prefs.link(this)?.let { load(it) } ?: showSetup(null)
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        handleShare(intent)
+        if (intent.action == ACTION_EXIT) exitApp() else handleShare(intent)
     }
 
     private fun handleShare(intent: Intent?): Boolean {
@@ -156,7 +160,12 @@ class MainActivity : Activity() {
             w.settings.domStorageEnabled = true
             w.settings.mediaPlaybackRequiresUserGesture = false
             w.addJavascriptInterface(Bridge(), "SofaAndroid")
-            w.webViewClient = WebViewClient()
+            w.webViewClient = object : WebViewClient() {
+                // The PC is off or unreachable: show what to do instead of a blank page
+                override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
+                    if (request.isForMainFrame) showOffline(request.url.toString(), error.description.toString())
+                }
+            }
             w.webChromeClient = object : WebChromeClient() {
                 override fun onShowCustomView(view: View, callback: CustomViewCallback) {
                     fullscreenView = view
@@ -170,6 +179,35 @@ class MainActivity : Activity() {
         }
         setContentView(view)
         view.loadUrl(link)
+    }
+
+    private fun showOffline(link: String, reason: String) {
+        val pad = (20 * resources.displayMetrics.density).toInt()
+        val host = Uri.parse(link).host ?: "the PC"
+        val button = { label: String, onClick: () -> Unit ->
+            Button(this).apply { text = label; setOnClickListener { onClick() } }
+        }
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(pad, pad * 3, pad, pad)
+            setBackgroundColor(Color.parseColor("#0E0F13"))
+            addView(TextView(context).apply {
+                text = "Can't reach the PC"
+                textSize = 26f
+                setTypeface(typeface, Typeface.BOLD)
+                setTextColor(Color.parseColor("#E8E9EE"))
+            })
+            addView(TextView(context).apply {
+                text = "Is sofa-remote running on $host, and is this phone on the same Wi-Fi?\n\n($reason)"
+                textSize = 16f
+                setTextColor(Color.parseColor("#8A8D99"))
+                setPadding(0, pad / 2, 0, pad)
+            })
+            addView(button("Try again") { load(link) }, LinearLayout.LayoutParams(-1, -2))
+            addView(button("Connect to another PC") { showSetup(null) }, LinearLayout.LayoutParams(-1, -2))
+            addView(button("Exit") { exitApp() }, LinearLayout.LayoutParams(-1, -2))
+        }
+        setContentView(box, ViewGroup.LayoutParams(-1, -1))
     }
 
     private fun hideFullscreen() {
@@ -298,7 +336,9 @@ class MainActivity : Activity() {
         }
     }
 
-    private companion object {
-        const val MIC_REQUEST = 2
+    companion object {
+        /** Notification "Exit" button: close the app and stop the volume buttons. */
+        const val ACTION_EXIT = "app.sofaremote.EXIT"
+        private const val MIC_REQUEST = 2
     }
 }

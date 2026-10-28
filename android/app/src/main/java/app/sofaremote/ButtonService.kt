@@ -110,6 +110,12 @@ class ButtonService : Service() {
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val button = { action: Long -> MediaButtonReceiver.buildMediaButtonPendingIntent(this, action) }
+        // Exit goes through the app (a service may not open activities on Android 12+): it stops this
+        // service and closes the app
+        val exit = PendingIntent.getActivity(this, 1,
+            Intent(this, MainActivity::class.java).setAction(MainActivity.ACTION_EXIT)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val pc = Remote.pcName.ifEmpty { "the PC" }
         return NotificationCompat.Builder(this, CHANNEL)
             .setSmallIcon(R.drawable.ic_stat)
@@ -122,6 +128,7 @@ class ButtonService : Service() {
             .addAction(R.drawable.ic_prev, "Previous", button(PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS))
             .addAction(R.drawable.ic_play_pause, "Play/Pause", button(PlaybackStateCompat.ACTION_PLAY_PAUSE))
             .addAction(R.drawable.ic_next, "Next", button(PlaybackStateCompat.ACTION_SKIP_TO_NEXT))
+            .addAction(R.drawable.ic_exit, "Exit", exit)
             .setStyle(androidx.media.app.NotificationCompat.MediaStyle()
                 .setMediaSession(session.sessionToken)
                 .setShowActionsInCompactView(0, 1, 2))
