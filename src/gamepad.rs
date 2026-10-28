@@ -188,7 +188,11 @@ pub mod driver {
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::time::{Duration, Instant};
 
-    const URL: &str = "https://github.com/nefarius/ViGEmBus/releases/download/v1.22.0/ViGEmBus_1.22.0_x64_x86_arm64.exe";
+    /// Where to download it: this project's releases carry a copy, then the publisher's own
+    const URLS: [&str; 2] = [
+        "https://github.com/karcisway/sofa-remote/releases/latest/download/ViGEmBus_1.22.0_x64_x86_arm64.exe",
+        "https://github.com/nefarius/ViGEmBus/releases/download/v1.22.0/ViGEmBus_1.22.0_x64_x86_arm64.exe",
+    ];
     // SHA-256 of that file (also in vendor/fetch.ps1)
     const SHA256: &str = "89220A7865076B342892F98865F3499FB7C4CFD673159E89D352C360FD014C6A";
     // Publisher of the ViGEmBus installer ("Nefarius Software Solutions e.U.")
@@ -293,23 +297,25 @@ pub mod driver {
         Ok(file)
     }
 
-    /// Download the official installer to the temp folder: curl.exe (Windows 10 1803+) first,
-    /// then PowerShell, which goes through the system proxy settings.
+    /// Download the official installer to the temp folder from `URLS`: curl.exe (Windows 10 1803+)
+    /// first, then PowerShell, which goes through the system proxy settings. curl skips the
+    /// certificate revocation check, which fails on PCs that can't reach the revocation servers
+    /// (the file is checked by its hash anyway).
     fn download() -> Result<PathBuf, String> {
         let file = temp_file()?;
         println!("Gamepads: downloading the ViGEmBus driver installer...");
-        let curl = Command::new("curl.exe").args(["-fsL", "--retry", "2", "-o"]).arg(&file).arg(URL)
-            .stderr(Stdio::null()).status().is_ok_and(|s| s.success());
-        let ok = curl || powershell(&format!(
-            "try {{ [Net.ServicePointManager]::SecurityProtocol = 'Tls12'; Invoke-WebRequest -UseBasicParsing -Uri '{URL}' -OutFile '{}'; 'ok' }} catch {{ 'failed' }}",
-            file.display()))? == "ok";
-        if ok {
-            Ok(file)
-        } else {
-            let _ = std::fs::remove_file(&file);
-            Err(format!("couldn't download the gamepad driver from github.com. Get it on any device from \
-                 {URL} and run it on this PC, or save it next to sofa-remote and use a gamepad again."))
+        for url in URLS {
+            let curl = Command::new("curl.exe").args(["-fsL", "--ssl-no-revoke", "--retry", "2", "-o"]).arg(&file)
+                .arg(url).stderr(Stdio::null()).status().is_ok_and(|s| s.success());
+            if curl || powershell(&format!(
+                "try {{ [Net.ServicePointManager]::SecurityProtocol = 'Tls12'; Invoke-WebRequest -UseBasicParsing -Uri '{url}' -OutFile '{}'; 'ok' }} catch {{ 'failed' }}",
+                file.display())).is_ok_and(|r| r == "ok") {
+                return Ok(file);
+            }
         }
+        let _ = std::fs::remove_file(&file);
+        Err(format!("couldn't download the gamepad driver from github.com. Get it on any device from \
+             {} and run it on this PC, or save it next to sofa-remote and use a gamepad again.", URLS[0]))
     }
 
     /// The known v1.22.0 installer is accepted by its hash; anything else needs the signature. The

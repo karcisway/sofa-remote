@@ -70,8 +70,8 @@ into the Windows exe, so no internet is needed: the first time a phone presses a
 sofa-remote checks it's the known installer (its SHA-256, or a valid Nefarius signature) and starts it.
 Approve the Windows prompt on the PC and press a button again. To do it ahead of time, run
 `sofa-remote --install-driver`. A ViGEmBus installer saved next to `sofa-remote` (or in Downloads)
-is used instead, and a build without the bundled one downloads it from
-[ViGEmBus releases](https://github.com/nefarius/ViGEmBus/releases).
+is used instead, and a build without the bundled one downloads it. Every release also has the
+installer as its own file (`ViGEmBus_1.22.0_x64_x86_arm64.exe`) to run by hand.
 
 Linux, once:
 
