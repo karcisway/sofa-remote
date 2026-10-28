@@ -2,6 +2,7 @@
 //! controller per player instead of a shared keyboard.
 //!
 //! - Windows: through the ViGEmBus driver (https://github.com/nefarius/ViGEmBus/releases).
+//!   When it's missing, `driver::install` fetches the official installer and runs it.
 //! - Linux: through uinput (/dev/uinput must be writable, see the README).
 //! - macOS: not available.
 //!
@@ -169,6 +170,90 @@ pub fn open(client: &str) -> Result<Option<u32>, String> {
 
 // ------------------------------------------------------------------ Windows: ViGEmBus
 
+/// Error text when the ViGEmBus driver isn't installed (the phone shows it).
+#[cfg(windows)]
+pub const DRIVER_MISSING: &str = "The PC needs the ViGEmBus gamepad driver";
+
+/// Getting the ViGEmBus driver onto the PC: the official installer is downloaded from GitHub on
+/// first use, accepted only when Windows says it's validly signed by its publisher (Nefarius),
+/// then started; Windows asks for permission on the PC.
+#[cfg(windows)]
+pub mod driver {
+    use std::path::Path;
+    use std::process::Command;
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    const URL: &str = "https://github.com/nefarius/ViGEmBus/releases/download/v1.22.0/ViGEmBus_1.22.0_x64_x86_arm64.exe";
+    // Publisher of the ViGEmBus installer ("Nefarius Software Solutions e.U.")
+    const SIGNER: &str = "Nefarius";
+
+    static RUNNING: AtomicBool = AtomicBool::new(false);
+
+    pub fn installed() -> bool {
+        vigem_client::Client::connect().is_ok()
+    }
+
+    /// Start `install` on its own thread unless one is already running; `done` gets the result.
+    pub fn install_in_background(done: impl FnOnce(Result<(), String>) + Send + 'static) -> bool {
+        if RUNNING.swap(true, Ordering::SeqCst) {
+            return false;
+        }
+        std::thread::spawn(move || {
+            let r = install();
+            RUNNING.store(false, Ordering::SeqCst);
+            done(r);
+        });
+        true
+    }
+
+    pub fn install() -> Result<(), String> {
+        let dir = std::env::temp_dir().join("sofa-remote");
+        std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+        let file = dir.join("ViGEmBus_1.22.0_x64_x86_arm64.exe");
+        println!("Gamepads: downloading the ViGEmBus driver installer...");
+        // curl.exe ships with Windows 10 (1803) and later
+        let ok = Command::new("curl.exe").args(["-fsSL", "--retry", "2", "-o"]).arg(&file).arg(URL)
+            .status().map_err(|e| format!("download failed: {e}"))?.success();
+        if !ok {
+            return Err("couldn't download the gamepad driver (is the PC online?)".into());
+        }
+        if let Err(e) = check_signature(&file) {
+            let _ = std::fs::remove_file(&file);
+            return Err(e);
+        }
+        println!("Gamepads: starting the driver installer; approve the Windows prompt on this PC.");
+        let code = powershell(&format!(
+            "try {{ (Start-Process -LiteralPath '{}' -Verb RunAs -Wait -PassThru).ExitCode }} catch {{ 'cancelled' }}",
+            file.display()))?;
+        let _ = std::fs::remove_file(&file);
+        match code.as_str() {
+            "0" | "3010" if installed() => Ok(()),
+            "0" | "3010" => Err("driver installed: restart the PC to use gamepads".into()),
+            "cancelled" | "1223" => Err("gamepad driver install was cancelled on the PC".into()),
+            other => Err(format!("gamepad driver installer failed ({other})")),
+        }
+    }
+
+    /// Accept the file only with a valid Authenticode signature from the driver's publisher.
+    pub(super) fn check_signature(file: &Path) -> Result<(), String> {
+        let out = powershell(&format!(
+            "$s = Get-AuthenticodeSignature -LiteralPath '{}'; \"$($s.Status)|$($s.SignerCertificate.Subject)\"",
+            file.display()))?;
+        let (status, subject) = out.split_once('|').unwrap_or((&out, ""));
+        if status == "Valid" && subject.contains(SIGNER) {
+            Ok(())
+        } else {
+            Err(format!("the downloaded driver installer isn't signed by {SIGNER} ({status}); not running it"))
+        }
+    }
+
+    fn powershell(script: &str) -> Result<String, String> {
+        let out = Command::new("powershell.exe").args(["-NoProfile", "-NonInteractive", "-Command", script])
+            .output().map_err(|e| e.to_string())?;
+        Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
+    }
+}
+
 #[cfg(windows)]
 mod platform {
     use super::{PadState, VirtualPad};
@@ -177,9 +262,7 @@ mod platform {
     struct Pad(Xbox360Wired<Client>);
 
     pub fn create() -> Result<Box<dyn VirtualPad>, String> {
-        let client = Client::connect().map_err(|_| {
-            "Virtual gamepads need the ViGEmBus driver: install it from github.com/nefarius/ViGEmBus/releases".to_string()
-        })?;
+        let client = Client::connect().map_err(|_| super::DRIVER_MISSING.to_string())?;
         let mut pad = Xbox360Wired::new(client, TargetId::XBOX360_WIRED);
         pad.plugin().map_err(|e| format!("gamepad plug-in failed: {e}"))?;
         pad.wait_ready().map_err(|e| format!("gamepad not ready: {e}"))?;
@@ -295,5 +378,17 @@ mod tests {
         let s = PadState::parse(&p).unwrap();
         assert_eq!(s, PadState { buttons: 0x1001, lt: 10, rt: 255, lx: -32768, ly: 32767, rx: 0, ry: -1 });
         assert!(PadState::parse(&p[..11]).is_none());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn driver_installer_must_be_signed_by_its_publisher() {
+        // validly signed, but by Microsoft
+        let curl = std::path::Path::new(r"C:\Windows\System32\curl.exe");
+        assert!(driver::check_signature(curl).unwrap_err().contains("isn't signed"));
+        let unsigned = std::env::temp_dir().join("sofa-remote-unsigned-test.exe");
+        std::fs::write(&unsigned, b"not a program").unwrap();
+        assert!(driver::check_signature(&unsigned).is_err());
+        let _ = std::fs::remove_file(unsigned);
     }
 }

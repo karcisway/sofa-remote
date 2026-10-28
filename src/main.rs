@@ -400,9 +400,13 @@ async fn handle_json(conn: &mut Conn, m: &Value) -> anyhow::Result<Option<Value>
         }
         "pad_open" => {
             let client = conn.session.lock().unwrap().client().to_string();
-            let player = tokio::task::spawn_blocking(move || gamepad::open(&client)).await?
-                .map_err(|e| anyhow::anyhow!(e))?;
-            reply["player"] = player.into();
+            let player = tokio::task::spawn_blocking(move || gamepad::open(&client)).await?;
+            #[cfg(windows)]
+            if player.as_ref().is_err_and(|e| e == gamepad::DRIVER_MISSING) {
+                install_driver(app.clone());
+                anyhow::bail!("Installing the gamepad driver: approve the Windows prompt on the PC");
+            }
+            reply["player"] = player.map_err(|e| anyhow::anyhow!(e))?.into();
         }
         #[cfg(feature = "webrtc")]
         "rtc_offer" => {
@@ -416,6 +420,21 @@ async fn handle_json(conn: &mut Conn, m: &Value) -> anyhow::Result<Option<Value>
         other => anyhow::bail!("unknown message type: {other}"),
     }
     Ok(Some(reply))
+}
+
+/// Fetch and run the ViGEmBus installer (once at a time), then tell the phones how it went.
+#[cfg(windows)]
+fn install_driver(app: Shared) {
+    gamepad::driver::install_in_background(move |r| match r {
+        Ok(()) => {
+            println!("Gamepads: driver installed.");
+            broadcast(&app, 0, &json!({ "t": "pad_driver", "ok": true }));
+        }
+        Err(e) => {
+            eprintln!("Gamepads: {e}");
+            broadcast(&app, 0, &json!({ "t": "pad_driver", "ok": false, "error": e }));
+        }
+    });
 }
 
 // ------------------------------------------------------------------ startup
@@ -462,11 +481,12 @@ struct Args {
     name: String,
     new_key: bool,
     no_focus: bool,
+    install_driver: bool,
     data: Option<PathBuf>,
 }
 
 fn parse_args() -> Args {
-    let mut a = Args { port: 8765, name: hostname(), new_key: false, no_focus: false, data: None };
+    let mut a = Args { port: 8765, name: hostname(), new_key: false, no_focus: false, install_driver: false, data: None };
     let mut it = std::env::args().skip(1);
     while let Some(arg) = it.next() {
         match arg.as_str() {
@@ -475,9 +495,11 @@ fn parse_args() -> Args {
             "--data" => a.data = it.next().map(PathBuf::from),
             "--new-key" => a.new_key = true,
             "--no-focus" => a.no_focus = true,
+            "--install-driver" => a.install_driver = true,
             "-h" | "--help" => {
-                println!("sofa-remote [--port 8765] [--name NAME] [--data DIR] [--new-key] [--no-focus]");
+                println!("sofa-remote [--port 8765] [--name NAME] [--data DIR] [--new-key] [--no-focus] [--install-driver]");
                 println!("  --no-focus  don't watch for text fields on the PC (the phone keyboard won't open by itself)");
+                println!("  --install-driver  install the ViGEmBus gamepad driver (Windows) and exit");
                 std::process::exit(0);
             }
             other => eprintln!("ignoring unknown argument: {other}"),
@@ -489,6 +511,19 @@ fn parse_args() -> Args {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let args = parse_args();
+    #[cfg(windows)]
+    if args.install_driver {
+        if gamepad::driver::installed() {
+            println!("The gamepad driver is already installed.");
+            return Ok(());
+        }
+        return gamepad::driver::install().map(|()| println!("Gamepad driver installed.")).map_err(|e| anyhow::anyhow!(e));
+    }
+    #[cfg(not(windows))]
+    if args.install_driver {
+        println!("Only Windows needs a gamepad driver; on Linux see the README (uinput).");
+        return Ok(());
+    }
     let data_dir = match args.data {
         Some(d) => d,
         None => std::env::current_exe()?.parent().map(PathBuf::from).unwrap_or_else(|| ".".into()),
@@ -538,6 +573,11 @@ async fn main() -> anyhow::Result<()> {
     print_qr(&url);
     let source = if layouts_path(&app).exists() { "layouts.json" } else { "built-in default" };
     println!("Layouts: {source} (in {}). Ctrl+C to stop.", app.data_dir.display());
+    #[cfg(windows)]
+    if !gamepad::driver::installed() {
+        println!("Gamepads: the ViGEmBus driver isn't installed yet. It installs the first time a phone uses a");
+        println!("gamepad (approve the prompt on this PC), or run: sofa-remote --install-driver");
+    }
     axum::serve(listener, router).await?;
     Ok(())
 }

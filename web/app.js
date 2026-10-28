@@ -142,6 +142,9 @@ class Server {
       m.error ? p.reject(new Error(m.error)) : p.resolve(m);
     } else if (m.t === 'config') {
       this.setConfig(m.config);
+    } else if (m.t === 'pad_driver') {
+      this.padOpened = false;   // the next press plugs the controller in (or offers the install again)
+      app.status(this.label + ': ' + (m.ok ? 'gamepad driver installed' : m.error), !m.ok, m.ok);
     } else if (m.t === 'focus') {
       app.onTextFocus(this, !!m.text);
     } else if (m.t === 'error') {

@@ -22,7 +22,7 @@ Nothing to install on the phone: it runs in the browser, or in the optional Andr
 3. Scan the QR code with the phone (same Wi-Fi), or open the link in its browser.
 
 ```
-sofa-remote [--port 8765] [--name "Living room"] [--data DIR] [--new-key] [--no-focus]
+sofa-remote [--port 8765] [--name "Living room"] [--data DIR] [--new-key] [--no-focus] [--install-driver]
 ```
 
 | Option | Does |
@@ -32,6 +32,7 @@ sofa-remote [--port 8765] [--name "Living room"] [--data DIR] [--new-key] [--no-
 | `--data DIR` | Where `layouts.json` and `.remote_token` live (default: next to the executable) |
 | `--new-key` | Make a new access key; phones have to scan the new link |
 | `--no-focus` | Don't open the phone keyboard by itself when a PC text field gets focus |
+| `--install-driver` | Windows: install the gamepad driver now and exit (see [Gamepads](#gamepads)) |
 
 **More PCs:** run it on each one, then on the phone use the device menu (top bar) ›
 **Add / manage devices** and paste the other PC's link.
@@ -57,9 +58,17 @@ within 30 seconds it gets the same controller back, so the game doesn't drop the
 
 | PC | Setup |
 | --- | --- |
-| Windows | Install the [ViGEmBus driver](https://github.com/nefarius/ViGEmBus/releases) once (the same driver DS4Windows uses) |
+| Windows | Needs the [ViGEmBus driver](https://github.com/nefarius/ViGEmBus) (the one DS4Windows uses). sofa-remote installs it for you, see below |
 | Linux | sofa-remote needs write access to `/dev/uinput` (see below) |
 | macOS | Not available. Use the keyboard/mouse **Gamepad** tab instead |
+
+**Windows driver:** a virtual controller that games can see needs a kernel driver; Windows has
+no way to do it without one. The first time a phone presses a gamepad button, sofa-remote
+downloads the official ViGEmBus installer from GitHub, checks it's validly signed by its
+publisher (Nefarius), and starts it. Approve the Windows prompt on the PC and press a button
+again. To do it ahead of time, run `sofa-remote --install-driver`, or install it yourself from
+[ViGEmBus releases](https://github.com/nefarius/ViGEmBus/releases) (v1.22.0). The PC needs
+internet once for this.
 
 Linux, once:
 
