@@ -62,6 +62,7 @@ class MainActivity : Activity() {
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
         }
+        ButtonService.onExit = { exitApp() }
         if (intent?.action == ACTION_EXIT) return exitApp()
         if (!handleShare(intent)) Prefs.link(this)?.let { load(it) } ?: showSetup(null)
     }
@@ -88,6 +89,11 @@ class MainActivity : Activity() {
         super.onStop()
         if (exiting) stopService(Intent(this, ButtonService::class.java))
         else ButtonService.update(this, appVisible = false)
+    }
+
+    override fun onDestroy() {
+        ButtonService.onExit = null
+        super.onDestroy()
     }
 
     override fun onResume() {

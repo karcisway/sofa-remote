@@ -13,6 +13,7 @@ import android.media.AudioFormat
 import android.media.AudioTrack
 import android.net.wifi.WifiManager
 import android.os.Build
+import android.os.Bundle
 import android.os.IBinder
 import android.os.PowerManager
 import android.support.v4.media.MediaMetadataCompat
@@ -50,6 +51,9 @@ class ButtonService : Service() {
                 override fun onPause() = Buttons.fire(Buttons.cfg.play)
                 override fun onSkipToNext() = Buttons.fire(Buttons.cfg.next)
                 override fun onSkipToPrevious() = Buttons.fire(Buttons.cfg.prev)
+                override fun onCustomAction(action: String?, extras: Bundle?) {
+                    if (action == MainActivity.ACTION_EXIT) exit()
+                }
             })
             setPlaybackToRemote(object : VolumeProviderCompat(VOLUME_CONTROL_RELATIVE, 100, 50) {
                 override fun onAdjustVolume(direction: Int) {
@@ -61,6 +65,8 @@ class ButtonService : Service() {
                 .setActions(PlaybackStateCompat.ACTION_PLAY or PlaybackStateCompat.ACTION_PAUSE or
                     PlaybackStateCompat.ACTION_PLAY_PAUSE or PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
                     PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS)
+                // Android 13+ draws media controls from the session, not the notification's actions
+                .addCustomAction(MainActivity.ACTION_EXIT, "Exit", R.drawable.ic_exit)
                 .setState(PlaybackStateCompat.STATE_PLAYING, 0, 1f)
                 .build())
             isActive = true
@@ -98,6 +104,13 @@ class ButtonService : Service() {
         super.onDestroy()
     }
 
+    /** Exit from the media controls: closes the app if it is open, else just stops this service. */
+    private fun exit() {
+        onExit?.invoke()
+        ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+        stopSelf()
+    }
+
     private fun refresh() {
         session.setMetadata(MediaMetadataCompat.Builder()
             .putString(MediaMetadataCompat.METADATA_KEY_TITLE, "Sofa Remote")
@@ -131,7 +144,7 @@ class ButtonService : Service() {
             .addAction(R.drawable.ic_exit, "Exit", exit)
             .setStyle(androidx.media.app.NotificationCompat.MediaStyle()
                 .setMediaSession(session.sessionToken)
-                .setShowActionsInCompactView(0, 1, 2))
+                .setShowActionsInCompactView(1, 2, 3))
             .build()
     }
 
@@ -165,6 +178,9 @@ class ButtonService : Service() {
     companion object {
         private const val CHANNEL = "buttons"
         private const val NOTIFICATION = 1
+
+        /** Set by MainActivity while it is open, so Exit in the media controls can close it. */
+        var onExit: (() -> Unit)? = null
 
         /** Start or stop the service to match the settings and whether the app is on screen. */
         fun update(c: Context, appVisible: Boolean) {
