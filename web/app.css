@@ -40,6 +40,7 @@ nav.compact .tab-name { display:none; }
   padding:8px 12px calc(8px + env(safe-area-inset-bottom)); background:var(--card); border-top:1px solid var(--card2); }
 #keybar[hidden] { display:none; }
 #keybar input { flex:1; min-width:0; font-size:16px; }
+#keybar .kbd { flex:1; min-width:0; }
 #toast.err { color:var(--err); } #toast.ok { color:var(--ok); }
 
 #edit-bar { display:flex; gap:6px; padding:0 16px 8px; overflow-x:auto; flex:none; }
@@ -97,6 +98,12 @@ input, textarea, select { width:100%; background:var(--card); color:var(--fg); b
   font:16px system-ui,sans-serif; padding:12px 14px; outline:none; user-select:text; -webkit-user-select:text; }
 input:focus, textarea:focus, select:focus { border-color:var(--acc); }
 textarea { resize:vertical; }
+.kbd { display:flex; gap:6px; align-items:stretch; }
+.kbd input { flex:1; min-width:0; }
+.kbd-btn { flex:none; width:48px; border-radius:14px; background:var(--card2); color:var(--fg); font-size:20px; }
+.kbd-btn.accent { background:var(--acc); color:#fff; }
+.kbd-btn.listening { background:var(--err); animation:pulse 1s ease-in-out infinite; }
+@keyframes pulse { 50% { filter:brightness(1.4); } }
 .clip { display:flex; flex-direction:column; gap:var(--gap); }
 .clip textarea { flex:1; min-height:110px; }
 .row3 { display:grid; grid-template-columns:repeat(3,1fr); gap:var(--gap); }
@@ -141,3 +148,4 @@ dialog details summary { color:var(--dim); font-size:14px; padding:4px 0; }
 .sheet-buttons { display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-end; margin-top:6px; }
 .sheet-buttons button { background:var(--card2); border-radius:10px; padding:11px 16px; font-size:15px; }
 .sheet-buttons .danger { background:#4a1d22; color:#ffb3b3; margin-right:auto; }
+button.wide.danger { background:#4a1d22; color:#ffb3b3; }

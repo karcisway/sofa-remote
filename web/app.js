@@ -352,6 +352,38 @@ function pressable(el, fn, repeat) {
   el.addEventListener('contextmenu', e => e.preventDefault());
 }
 
+// ------------------------------------------------------------------ speech to text
+
+// Start listening; handlers get text(t, final), end() and error(msg). Returns a stop function,
+// or null when this phone can't do it here. The Android app uses the phone's own recognizer
+// (WebView has no Web Speech API); browsers only allow the microphone on https or localhost.
+function listen({ text, end, error }) {
+  const bridge = window.SofaAndroid;
+  if (bridge?.startSpeech) {
+    window.sofaSpeech = ev => {
+      if (ev.type === 'partial' || ev.type === 'final') text(ev.text, ev.type === 'final');
+      else if (ev.type === 'error') error(ev.text);
+      else if (ev.type === 'end') end();
+    };
+    bridge.startSpeech(navigator.language || '');
+    return () => bridge.stopSpeech();
+  }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR || !window.isSecureContext) return null;
+  const rec = new SR();
+  rec.lang = navigator.language || 'en-US';
+  rec.interimResults = true;
+  rec.continuous = false;
+  rec.onresult = e => {
+    const r = e.results[e.results.length - 1];
+    text(r[0].transcript.trim(), r.isFinal);
+  };
+  rec.onerror = e => error(e.error === 'not-allowed' ? 'Microphone permission denied' : 'Voice input: ' + e.error);
+  rec.onend = end;
+  rec.start();
+  return () => rec.stop();
+}
+
 // ------------------------------------------------------------------ widgets
 
 const WIDGET_TYPES = {
@@ -529,7 +561,7 @@ const WIDGETS = {
     const input = h('input', { autocomplete: 'off', autocorrect: 'off', autocapitalize: 'off', spellcheck: 'false',
       enterkeyhint: 'send', placeholder: w.label || 'Tap here and type: goes live to the PC' });
     const send = m => targetsOf(w, srv).forEach(s => s.send(m));
-    let sent = '';
+    let sent = '', stopSpeech = null, spokenBase = '';
     // Diff against what was already sent, so autocorrect and suggestions work
     input.addEventListener('input', () => {
       const now = input.value;
@@ -538,13 +570,37 @@ const WIDGETS = {
       const backspaces = sent.length - p, text = now.slice(p);
       sent = now;
       if (backspaces || text) send({ t: 'type', text, backspaces });
-      if (now.length > 300) { input.value = ''; sent = ''; }
+      if (now.length > 300 && !stopSpeech) { input.value = ''; sent = ''; }
     });
+    const submit = () => { stopSpeech?.(); send({ t: 'key', k: 'enter' }); input.value = ''; sent = ''; };
     input.addEventListener('keydown', e => {
-      if (e.key === 'Enter') { e.preventDefault(); send({ t: 'key', k: 'enter' }); input.value = ''; sent = ''; }
+      if (e.key === 'Enter') { e.preventDefault(); submit(); }
       else if (e.key === 'Backspace' && input.value === '') { e.preventDefault(); send({ t: 'key', k: 'backspace' }); }
     });
-    return input;
+
+    // Speech to text: words go into the field (and so live to the PC); partial results are
+    // corrected as recognition goes, the same way keyboard autocorrect is.
+    const mic = h('button', { type: 'button', class: 'kbd-btn', title: 'Speak' }, '🎤');
+    const spoken = text => {
+      input.value = spokenBase + text;
+      input.dispatchEvent(new Event('input'));
+    };
+    const stopped = () => { stopSpeech = null; mic.classList.remove('listening'); };
+    mic.addEventListener('click', () => {
+      if (stopSpeech) return stopSpeech();
+      spokenBase = input.value && !input.value.endsWith(' ') ? input.value + ' ' : input.value;
+      stopSpeech = listen({
+        text: (t, final) => { spoken(t); if (final) spokenBase = input.value + ' '; },
+        end: stopped,
+        error: msg => { stopped(); app.status(msg, true); },
+      });
+      if (stopSpeech) mic.classList.add('listening');
+      else { input.focus(); app.status('Voice input needs the Android app or an https page: use the 🎤 key on your phone keyboard instead', true); }
+    });
+    const enter = h('button', { type: 'button', class: 'kbd-btn accent', title: 'Send (Enter)', onclick: submit }, '⏎');
+    // keep the phone keyboard open when tapping the buttons
+    for (const b of [mic, enter]) b.addEventListener('pointerdown', e => document.activeElement === input && e.preventDefault());
+    return h('div', { class: 'kbd' }, input, mic, enter);
   },
 
   clipboard(w, srv) {
@@ -661,21 +717,22 @@ function cellSize(grid, layout) {
 const rect = o => ({ x: o.x || 0, y: o.y || 0, w: o.w || 1, h: o.h || 1 });
 const hits = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
 
-// Keep `fixed` where it is and move every widget it would cover: down in scrolling layouts,
-// to the nearest free cell in fit-screen layouts (left overlapping only if the screen is full).
-function resolveOverlaps(layout, fixed) {
+// Keep `fixed` where it is (if given) and move every widget it would cover. Scrolling layouts
+// also float everything up, so no empty rows are left behind; fit-screen layouts keep their free
+// placement and move covered widgets to the nearest free cell (overlapping only if the screen is full).
+function resolveOverlaps(layout, fixed = null) {
   if (layout.allowOverlap) return;
   const cols = layout.cols || 12, maxRows = layout.fit ? layout.rows || 6 : Infinity;
-  const placed = [rect(fixed)];
+  const placed = fixed ? [rect(fixed)] : [];
   const free = r => !placed.some(p => hits(p, r));
   const others = (layout.widgets || []).filter(o => o !== fixed)
     .sort((a, b) => (a.y || 0) - (b.y || 0) || (a.x || 0) - (b.x || 0));
   const settle = (o, r) => { o.x = r.x; o.y = r.y; placed.push(r); };
 
   if (maxRows === Infinity) {
-    // Scrolling layout: top to bottom, push each widget down until it fits (cascades like a list)
+    // Scrolling layout: top to bottom, each widget goes to the highest row where it fits
     for (const o of others) {
-      const r = rect(o);
+      const r = { ...rect(o), y: 0 };
       while (!free(r)) r.y++;
       settle(o, r);
     }
@@ -731,6 +788,10 @@ function makeEditable(box, w, grid, layout) {
   });
   box.addEventListener('pointerup', () => {
     if (start && !start.moved) openWidgetSheet(layout, w);
+    else if (start) {   // dropped: the moved widget floats up too
+      resolveOverlaps(layout);
+      for (const [other, b] of grid.boxes) place(b, other);
+    }
     start = null;
     box.classList.remove('dragging');
   });
@@ -856,14 +917,17 @@ function openWidgetSheet(layout, w, isNew = false) {
     const i = list.indexOf(w);
     if (i >= 0) list[i] = out; else list.push(out);
     resolveOverlaps(layout, out);
+    resolveOverlaps(layout);
     closeSheet();
     app.render();
   };
   sheet(isNew ? 'New widget' : 'Edit widget', body, [
-    isNew ? null : sheetBtn('Delete', () => { layout.widgets.splice(layout.widgets.indexOf(w), 1); closeSheet(); app.render(); }, 'danger'),
+    isNew ? null : sheetBtn('Delete', () => {
+      layout.widgets.splice(layout.widgets.indexOf(w), 1); resolveOverlaps(layout); closeSheet(); app.render();
+    }, 'danger'),
     isNew ? null : sheetBtn('Duplicate', () => {
       const copy = { ...structuredClone(w), y: (w.y || 0) + (w.h || 1) };
-      layout.widgets.push(copy); resolveOverlaps(layout, copy); closeSheet(); app.render();
+      layout.widgets.push(copy); resolveOverlaps(layout, copy); resolveOverlaps(layout); closeSheet(); app.render();
     }),
     sheetBtn('Cancel', closeSheet),
     sheetBtn(isNew ? 'Add' : 'OK', apply, 'primary'),
@@ -1293,6 +1357,8 @@ const app = {
       toggle('Silent audio keep-alive (if locked buttons stop working)', 'silent'),
       h('p', { class: 'note' }, 'Actions: a key (volup, space, f, right…), a shortcut (ctrl+right), click / rclick / dblclick, scroll:3 (down; negative = up), text:hello, open:netflix.com. Leave empty for nothing. With volup/voldown on the two buttons, presses go out instantly and pressing both cancels them out; with other actions a single press waits for the “both” window first.'),
       h('button', { class: 'wide', onclick: () => bridge.changePc() }, 'Connect the app to another PC'),
+      bridge.exit ? h('button', { class: 'wide danger', onclick: () => bridge.exit() }, 'Exit the app') : null,
+      h('p', { class: 'note' }, 'Exit also stops the volume buttons and the media notification. Back twice does the same.'),
     ];
   },
 

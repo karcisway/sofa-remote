@@ -30,6 +30,7 @@ import android.widget.Toast
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
+import org.json.JSONObject
 
 /** The web app from the PC in a WebView, plus what a web page can't do: the volume buttons
  *  (also with the screen locked, see ButtonService), opening the keyboard by itself, and a
@@ -40,6 +41,16 @@ class MainActivity : Activity() {
     private var fullscreenCallback: WebChromeClient.CustomViewCallback? = null
     private var wifiLock: WifiManager.WifiLock? = null
     private val held = mutableSetOf<Int>()
+    private val speech by lazy {
+        Speech(this) { type, text ->
+            val ev = JSONObject().put("type", type).put("text", text)
+            web?.evaluateJavascript("window.sofaSpeech && window.sofaSpeech($ev)", null)
+        }
+    }
+    private var exiting = false
+    private var backPressedAt = 0L
+    /** Language of a voice request waiting for the microphone permission. */
+    private var pendingSpeech: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -71,7 +82,8 @@ class MainActivity : Activity() {
 
     override fun onStop() {
         super.onStop()
-        ButtonService.update(this, appVisible = false)
+        if (exiting) stopService(Intent(this, ButtonService::class.java))
+        else ButtonService.update(this, appVisible = false)
     }
 
     override fun onResume() {
@@ -84,9 +96,19 @@ class MainActivity : Activity() {
     }
 
     override fun onPause() {
+        speech.destroy()
         wifiLock?.release()
         wifiLock = null
         super.onPause()
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        if (requestCode != MIC_REQUEST) return
+        val language = pendingSpeech ?: return
+        pendingSpeech = null
+        if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) speech.start(language)
+        else web?.evaluateJavascript(
+            "window.sofaSpeech && (sofaSpeech({type:'error',text:'Microphone permission denied'}), sofaSpeech({type:'end'}))", null)
     }
 
     // ---- volume buttons while the app is on screen
@@ -111,7 +133,19 @@ class MainActivity : Activity() {
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
         if (fullscreenView != null) fullscreenCallback?.onCustomViewHidden() ?: hideFullscreen()
-        else moveTaskToBack(true)
+        else if (System.currentTimeMillis() - backPressedAt < 2000) exitApp()
+        else {
+            backPressedAt = System.currentTimeMillis()
+            Toast.makeText(this, "Press back again to exit", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    /** Close the app for real: also stops the volume buttons service and its notification. */
+    private fun exitApp() {
+        exiting = true
+        speech.destroy()
+        stopService(Intent(this, ButtonService::class.java))
+        finishAndRemoveTask()
     }
 
     // ---- web app
@@ -236,6 +270,22 @@ class MainActivity : Activity() {
         }
 
         @JavascriptInterface
+        fun startSpeech(language: String) = runOnUiThread {
+            if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                speech.start(language)
+            } else {
+                pendingSpeech = language
+                requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), MIC_REQUEST)
+            }
+        }
+
+        @JavascriptInterface
+        fun stopSpeech() = runOnUiThread { speech.stop() }
+
+        @JavascriptInterface
+        fun exit() = runOnUiThread { exitApp() }
+
+        @JavascriptInterface
         fun changePc() = runOnUiThread { showSetup(null) }
 
         @JavascriptInterface
@@ -246,5 +296,9 @@ class MainActivity : Activity() {
                 getSystemService(InputMethodManager::class.java).showSoftInput(w, InputMethodManager.SHOW_IMPLICIT)
             }, 50)
         }
+    }
+
+    private companion object {
+        const val MIC_REQUEST = 2
     }
 }

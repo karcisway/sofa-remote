@@ -88,7 +88,11 @@ plus what a web page can't do:
   headset / notification ⏯ ⏭ ⏮ buttons do: a key (`volup`, `space`, `f`), a shortcut
   (`ctrl+right`), `click`/`rclick`/`dblclick`, `scroll:3`, `text:hello` or `open:netflix.com`.
 - The keyboard opens by itself when you select a text field on the PC.
+- The keyboard's 🎤 button works, using the phone's own speech recognizer. In a browser it only
+  works on https pages; there, use the 🎤 key on the phone keyboard instead.
 - While the app is on screen it keeps the phone's Wi-Fi in low-latency mode (less mouse jitter).
+- **Exit:** press Back twice, or ⚙ › Exit the app. That also stops the volume buttons and the
+  media notification. Home leaves it running in the background.
 
 First start: scan the PC's QR code from the app, or paste/share its link to the app. With
 "Keep working with the screen locked" on, it shows a media notification. Android sends the
@@ -188,6 +192,9 @@ Edit layouts on the phone (✎), or write the JSON yourself (✎ › JSON, or ed
 }
 ```
 
+In scrolling layouts widgets float up as you move, add or delete them, so no empty rows are left.
+Fit-screen layouts keep widgets exactly where you put them.
+
 **Layout fields:** `icon` is the emoji shown on the tab when names don't fit. `allowOverlap: true`
 stops widgets pushing each other aside in the editor. `cols` sets the grid width. `rowHeight` is
 in px. `fit: true` + `rows` makes a fixed grid that fills the screen (good for gamepads).
@@ -200,7 +207,7 @@ in px. `fit: true` + `rows` makes a fixed grid that fills the screen (good for g
 | `button` | `action`, `icon`, `style` (`accent`/`dark`), `color`, `repeat` (`true` or ms) |
 | `joystick` | `mode`: `keys` (default; `keys: {"up":"w","left":"a","down":"s","right":"d"}`, `deadzone`), `mouse` (`speed`) or `pad` (analog stick of the virtual gamepad; `stick`: `left`/`right`) |
 | `touchpad` | `sens`. Tap: click. Hold still: right click (or the R corner button). Tap then touch again and drag: drag with the left button held (select, move, resize). Double tap: double click |
-| `keyboard` | live typing field |
+| `keyboard` | live typing field, with 🎤 voice input and a ⏎ button that sends Enter |
 | `clipboard` | shared clipboard + open URL |
 | `lockscreen` | phone lock-screen / headset media controls |
 | `label` | `text` |
