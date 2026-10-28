@@ -47,12 +47,22 @@ applyTheme(store.get('theme', 'night'));
 // Icons: "lucide:play" is a Lucide icon from icons.svg (https://lucide.dev, ~1900 of them);
 // anything else (emoji, "F5", "Esc") is shown as text.
 const ICON_PREFIX = 'lucide:';
+// The sprite goes into the page once and icons point into it (#i-name): a <use> of icons.svg#name
+// made the browser look the file up again on every render, so icons blinked on each page change.
+// Ids get "i-" so they can't clash with the page's own (#sheet, #view). Icons drawn before it
+// arrives fill in by themselves.
+fetch('icons.svg').then(r => r.text()).then(svg => {
+  const box = h('div', { 'aria-hidden': 'true', style: 'position:absolute;width:0;height:0;overflow:hidden' });
+  box.innerHTML = svg;
+  for (const s of box.querySelectorAll('symbol')) s.id = 'i-' + s.id;
+  document.body.prepend(box);
+});
 function svgIcon(name) {
   const NS = 'http://www.w3.org/2000/svg', svg = document.createElementNS(NS, 'svg'), use = document.createElementNS(NS, 'use');
   const attrs = { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2,
     'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' };
   for (const [k, v] of Object.entries(attrs)) svg.setAttribute(k, v);
-  use.setAttribute('href', 'icons.svg#' + name);
+  use.setAttribute('href', '#i-' + name);
   svg.append(use);
   return svg;
 }
