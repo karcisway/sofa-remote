@@ -374,29 +374,46 @@ function releaseEverything() {
 }
 
 // Press/release handling with multi-touch and optional hold-to-repeat.
+// On a page that scrolls (#view.scrolls, see watchScroll) a touch only presses after SCROLL_WAIT ms
+// or on release, so a finger that starts on a button can still scroll: the browser cancels the
+// pointer when it takes the touch for scrolling, and nothing is sent. Pages that fit the screen
+// (gamepads) press at once.
+const SCROLL_WAIT = 120;
 function pressable(el, fn, repeat) {
-  let pid = null, t1 = 0, t2 = 0;
-  const end = () => {
-    if (pid === null) return;
-    pid = null;
-    clearTimeout(t1); clearInterval(t2);
-    el.classList.remove('down');
-    activeReleases.delete(end);
-    fn('up');
-  };
-  el.addEventListener('pointerdown', e => {
-    e.preventDefault();
-    if (pid !== null) return;
-    pid = e.pointerId;
+  let pid = null, pressed = false, t0 = 0, t1 = 0, t2 = 0;
+  const press = () => {
+    clearTimeout(t0);
+    if (pid === null || pressed) return;
+    pressed = true;
     try { el.setPointerCapture(pid); } catch {}
-    el.classList.add('down');
     activeReleases.add(end);
     vibrate(8);
     fn('down');
     if (repeat) t1 = setTimeout(() => (t2 = setInterval(() => fn('down'), typeof repeat === 'number' ? repeat : 110)), 400);
+  };
+  const end = () => {
+    if (pid === null) return;
+    pid = null;
+    clearTimeout(t0); clearTimeout(t1); clearInterval(t2);
+    el.classList.remove('down');
+    activeReleases.delete(end);
+    if (pressed) fn('up');
+    pressed = false;
+  };
+  el.addEventListener('pointerdown', e => {
+    if (pid !== null) return;
+    pid = e.pointerId;
+    el.classList.add('down');
+    if (e.pointerType === 'touch' && el.closest('#view.scrolls')) t0 = setTimeout(press, SCROLL_WAIT);
+    else { e.preventDefault(); press(); }
   });
-  for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture'])
-    el.addEventListener(ev, e => { if (e.pointerId === pid) end(); });
+  el.addEventListener('pointerup', e => {
+    if (e.pointerId !== pid) return;
+    press(); // a quick tap: press now, released just below
+    end();
+  });
+  el.addEventListener('pointercancel', e => { if (e.pointerId === pid) end(); });
+  el.addEventListener('lostpointercapture', e => { if (e.pointerId === pid && pressed) end(); });
   el.addEventListener('contextmenu', e => e.preventDefault());
 }
 
@@ -725,6 +742,18 @@ async function toggleMedia(srv, w) {
 }
 
 // ------------------------------------------------------------------ layout rendering
+
+// Marks the view .scrolls while its content is taller than the screen, so buttons there let the
+// finger scroll (see pressable and app.css)
+const scrollWatch = new ResizeObserver(([e]) => {
+  const view = e.target.closest('#view') || e.target;
+  view.classList.toggle('scrolls', view.scrollHeight > view.clientHeight + 1);
+});
+function watchScroll(view) {
+  scrollWatch.disconnect();
+  scrollWatch.observe(view);
+  if (view.firstElementChild) scrollWatch.observe(view.firstElementChild);
+}
 
 function place(box, w) {
   box.style.gridColumn = w.x != null ? `${w.x + 1} / span ${w.w || 1}` : `span ${w.w || 1}`;
@@ -1359,6 +1388,7 @@ const app = {
     document.body.classList.toggle('immersive', immersive);
     $('#exit-immersive').hidden = !immersive;
     view.replaceChildren(t ? renderLayout(t.srv, t.layout, !!this.edit && this.edit.srv === t.srv) : this.renderSettings());
+    watchScroll(view);
     this.refreshStatus();
   },
   renderSettings() {
