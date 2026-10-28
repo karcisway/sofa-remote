@@ -308,8 +308,10 @@ pub mod driver {
     /// hash comes first because the signature check can fail on PCs that can't reach the
     /// certificate revocation servers (CRYPT_E_REVOCATION_OFFLINE).
     pub(super) fn verify(file: &Path) -> Result<(), String> {
-        let hash = powershell(&format!("(Get-FileHash -Algorithm SHA256 -LiteralPath '{}').Hash", file.display()))?;
-        if hash.eq_ignore_ascii_case(SHA256) { Ok(()) } else { check_signature(file) }
+        use sha2::{Digest, Sha256};
+        let bytes = std::fs::read(file).map_err(|e| format!("couldn't read the driver installer: {e}"))?;
+        let hash: String = Sha256::digest(&bytes).iter().map(|b| format!("{b:02X}")).collect();
+        if hash == SHA256 { Ok(()) } else { check_signature(file) }
     }
 
     /// Accept the file only with a valid Authenticode signature from the driver's publisher.
@@ -326,9 +328,15 @@ pub mod driver {
     }
 
     fn powershell(script: &str) -> Result<String, String> {
+        // A PSModulePath inherited from PowerShell 7 can make Windows PowerShell load the wrong
+        // modules: let it use its own
         let out = Command::new("powershell.exe").args(["-NoProfile", "-NonInteractive", "-Command", script])
-            .output().map_err(|e| e.to_string())?;
-        Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
+            .env_remove("PSModulePath").output().map_err(|e| e.to_string())?;
+        let stdout = String::from_utf8_lossy(&out.stdout).trim().to_string();
+        if stdout.is_empty() && !out.stderr.is_empty() {
+            return Err(format!("PowerShell: {}", String::from_utf8_lossy(&out.stderr).trim()));
+        }
+        Ok(stdout)
     }
 }
 
