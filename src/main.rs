@@ -499,10 +499,15 @@ fn parse_args() -> Args {
             "--new-key" => a.new_key = true,
             "--no-focus" => a.no_focus = true,
             "--install-driver" => a.install_driver = true,
+            "-V" | "--version" => {
+                println!("sofa-remote {}", env!("CARGO_PKG_VERSION"));
+                std::process::exit(0);
+            }
             "-h" | "--help" => {
                 println!("sofa-remote [--port 8765] [--name NAME] [--data DIR] [--new-key] [--no-focus] [--install-driver]");
                 println!("  --no-focus  don't watch for text fields on the PC (the phone keyboard won't open by itself)");
                 println!("  --install-driver  install the ViGEmBus gamepad driver (Windows) and exit");
+                println!("  --version  print the version and exit");
                 std::process::exit(0);
             }
             other => eprintln!("ignoring unknown argument: {other}"),
@@ -571,7 +576,7 @@ async fn main() -> anyhow::Result<()> {
     let listener = tokio::net::TcpListener::bind(("0.0.0.0", args.port)).await?
         .tap_io(|tcp| { let _ = tcp.set_nodelay(true); });
     let url = format!("http://{}:{}/?k={}", lan_ip(), args.port, app.token);
-    println!("\nSofa Remote '{}' running. Open on your phone (same Wi-Fi),", app.name);
+    println!("\nSofa Remote {} '{}' running. Open on your phone (same Wi-Fi),", env!("CARGO_PKG_VERSION"), app.name);
     println!("or add it under the device menu on a phone already using another PC:\n\n  {url}\n");
     print_qr(&url);
     let source = if layouts_path(&app).exists() { "layouts.json" } else { "built-in default" };

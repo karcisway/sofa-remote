@@ -7,6 +7,8 @@ keyboard, shared clipboard, custom layouts, and **real virtual gamepads** (every
 its own Xbox 360 controller). The PC side is a single executable with the phone web app built in.
 Nothing to install on the phone: it runs in the browser, or in the optional Android app.
 
+Version **0.1.9**: [changes](CHANGELOG.md) and [build details and checksums](BUILD-INFO.md).
+
 - [Quick start](#quick-start)
 - [Gamepads](#gamepads)
 - [Android app](#android-app)
@@ -33,6 +35,7 @@ sofa-remote [--port 8765] [--name "Living room"] [--data DIR] [--new-key] [--no-
 | `--new-key` | Make a new access key; phones have to scan the new link |
 | `--no-focus` | Don't open the phone keyboard by itself when a PC text field gets focus |
 | `--install-driver` | Windows: install the gamepad driver now and exit (see [Gamepads](#gamepads)) |
+| `--version` | Print the PC server version and exit |
 
 **More PCs:** run it on each one, then on the phone use the device menu (top bar) ›
 **Add / manage devices** and paste the other PC's link.
