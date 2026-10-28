@@ -70,7 +70,8 @@ downloads the official ViGEmBus installer from GitHub, checks it's validly signe
 publisher (Nefarius), and starts it. Approve the Windows prompt on the PC and press a button
 again. To do it ahead of time, run `sofa-remote --install-driver`, or install it yourself from
 [ViGEmBus releases](https://github.com/nefarius/ViGEmBus/releases) (v1.22.0). The PC needs
-internet once for this.
+internet once for this. If it can't reach GitHub, download the installer on another device and
+save it next to `sofa-remote` (or in Downloads); it's used from there, after the same check.
 
 Linux, once:
 

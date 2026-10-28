@@ -174,32 +174,41 @@ pub fn open(client: &str) -> Result<Option<u32>, String> {
 #[cfg(windows)]
 pub const DRIVER_MISSING: &str = "The PC needs the ViGEmBus gamepad driver";
 
-/// Getting the ViGEmBus driver onto the PC: the official installer is downloaded from GitHub on
-/// first use, accepted only when Windows says it's validly signed by its publisher (Nefarius),
-/// then started; Windows asks for permission on the PC.
+/// Getting the ViGEmBus driver onto the PC: an installer the user already saved (next to
+/// sofa-remote, in the current folder or in Downloads) is used first, else the official one is
+/// downloaded from GitHub. It's accepted only when Windows says it's validly signed by its
+/// publisher (Nefarius), then started; Windows asks for permission on the PC.
 #[cfg(windows)]
 pub mod driver {
-    use std::path::Path;
-    use std::process::Command;
+    use std::path::{Path, PathBuf};
+    use std::process::{Command, Stdio};
+    use std::sync::Mutex;
     use std::sync::atomic::{AtomicBool, Ordering};
+    use std::time::{Duration, Instant};
 
     const URL: &str = "https://github.com/nefarius/ViGEmBus/releases/download/v1.22.0/ViGEmBus_1.22.0_x64_x86_arm64.exe";
     // Publisher of the ViGEmBus installer ("Nefarius Software Solutions e.U.")
     const SIGNER: &str = "Nefarius";
 
     static RUNNING: AtomicBool = AtomicBool::new(false);
+    /// After a failed attempt, gamepad use doesn't start another one for a while (no prompt or
+    /// download every time a phone touches the pad).
+    static FAILED_AT: Mutex<Option<Instant>> = Mutex::new(None);
+    const RETRY_AFTER: Duration = Duration::from_secs(120);
 
     pub fn installed() -> bool {
         vigem_client::Client::connect().is_ok()
     }
 
-    /// Start `install` on its own thread unless one is already running; `done` gets the result.
+    /// Start `install` on its own thread unless one is already running or one failed less than
+    /// `RETRY_AFTER` ago; `done` gets the result.
     pub fn install_in_background(done: impl FnOnce(Result<(), String>) + Send + 'static) -> bool {
-        if RUNNING.swap(true, Ordering::SeqCst) {
+        if FAILED_AT.lock().unwrap().is_some_and(|t| t.elapsed() < RETRY_AFTER) || RUNNING.swap(true, Ordering::SeqCst) {
             return false;
         }
         std::thread::spawn(move || {
             let r = install();
+            *FAILED_AT.lock().unwrap() = r.is_err().then(Instant::now);
             RUNNING.store(false, Ordering::SeqCst);
             done(r);
         });
@@ -207,30 +216,67 @@ pub mod driver {
     }
 
     pub fn install() -> Result<(), String> {
-        let dir = std::env::temp_dir().join("sofa-remote");
-        std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-        let file = dir.join("ViGEmBus_1.22.0_x64_x86_arm64.exe");
-        println!("Gamepads: downloading the ViGEmBus driver installer...");
-        // curl.exe ships with Windows 10 (1803) and later
-        let ok = Command::new("curl.exe").args(["-fsSL", "--retry", "2", "-o"]).arg(&file).arg(URL)
-            .status().map_err(|e| format!("download failed: {e}"))?.success();
-        if !ok {
-            return Err("couldn't download the gamepad driver (is the PC online?)".into());
-        }
+        let (file, downloaded) = match find_saved() {
+            Some(f) => {
+                println!("Gamepads: using the driver installer {}", f.display());
+                (f, false)
+            }
+            None => (download()?, true),
+        };
         if let Err(e) = check_signature(&file) {
-            let _ = std::fs::remove_file(&file);
+            if downloaded {
+                let _ = std::fs::remove_file(&file);
+            }
             return Err(e);
         }
         println!("Gamepads: starting the driver installer; approve the Windows prompt on this PC.");
         let code = powershell(&format!(
             "try {{ (Start-Process -LiteralPath '{}' -Verb RunAs -Wait -PassThru).ExitCode }} catch {{ 'cancelled' }}",
             file.display()))?;
-        let _ = std::fs::remove_file(&file);
+        if downloaded {
+            let _ = std::fs::remove_file(&file);
+        }
         match code.as_str() {
             "0" | "3010" if installed() => Ok(()),
             "0" | "3010" => Err("driver installed: restart the PC to use gamepads".into()),
             "cancelled" | "1223" => Err("gamepad driver install was cancelled on the PC".into()),
             other => Err(format!("gamepad driver installer failed ({other})")),
+        }
+    }
+
+    /// A ViGEmBus installer the user saved: next to sofa-remote, in the current folder or in Downloads.
+    fn find_saved() -> Option<PathBuf> {
+        let dirs = [
+            std::env::current_exe().ok().and_then(|e| e.parent().map(Path::to_path_buf)),
+            std::env::current_dir().ok(),
+            std::env::var_os("USERPROFILE").map(|h| PathBuf::from(h).join("Downloads")),
+        ];
+        dirs.into_iter().flatten().find_map(|dir| {
+            std::fs::read_dir(dir).ok()?.flatten().map(|e| e.path()).find(|p| {
+                let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("").to_ascii_lowercase();
+                name.starts_with("vigembus") && name.ends_with(".exe")
+            })
+        })
+    }
+
+    /// Download the official installer to the temp folder: curl.exe (Windows 10 1803+) first,
+    /// then PowerShell, which goes through the system proxy settings.
+    fn download() -> Result<PathBuf, String> {
+        let dir = std::env::temp_dir().join("sofa-remote");
+        std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+        let file = dir.join("ViGEmBus_1.22.0_x64_x86_arm64.exe");
+        println!("Gamepads: downloading the ViGEmBus driver installer...");
+        let curl = Command::new("curl.exe").args(["-fsL", "--retry", "2", "-o"]).arg(&file).arg(URL)
+            .stderr(Stdio::null()).status().is_ok_and(|s| s.success());
+        let ok = curl || powershell(&format!(
+            "try {{ [Net.ServicePointManager]::SecurityProtocol = 'Tls12'; Invoke-WebRequest -UseBasicParsing -Uri '{URL}' -OutFile '{}'; 'ok' }} catch {{ 'failed' }}",
+            file.display()))? == "ok";
+        if ok {
+            Ok(file)
+        } else {
+            let _ = std::fs::remove_file(&file);
+            Err(format!("couldn't download the gamepad driver from github.com. Get it on any device from \
+                 {URL} and run it on this PC, or save it next to sofa-remote and use a gamepad again."))
         }
     }
 
