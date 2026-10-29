@@ -4,137 +4,202 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Sofa Remote: your phone controls your PC</title>
-<meta name="description" content="Free, open-source remote for Windows, Linux and macOS: media keys, touchpad, live keyboard with voice typing, and a real gamepad for every phone. No app needed, just scan a QR code.">
+<meta name="description" content="Free, open-source remote for Windows, Linux and macOS: media keys, touchpad, keyboard with voice typing, and a real Xbox controller for every phone. Scan a QR code, no account, no cloud.">
 <meta name="theme-color" content="#0e0f13">
-<meta property="og:title" content="Sofa Remote">
-<meta property="og:description" content="Your phone is the remote, the touchpad and a real gamepad for your PC.">
-<meta property="og:image" content="social.jpg">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://karcisway.github.io/sofa-remote/">
+<meta property="og:title" content="Sofa Remote: your phone controls your PC">
+<meta property="og:description" content="Remote, touchpad, keyboard and a real gamepad for every phone. Free and open source, no account, no cloud.">
+<meta property="og:image" content="https://karcisway.github.io/sofa-remote/social.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://karcisway.github.io/sofa-remote/social.jpg">
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=Silkscreen&display=swap" rel="stylesheet">
 <style>
 :root {
-  --ink: #0e0f13; --ink-2: #151a2e; --card: #171a24; --line: #262a38;
+  --ink: #0e0f13; --ink-2: #151a2e; --card: #141826; --line: #262c42;
   --fg: #e8e9ee; --dim: #9ea2b3; --blue: #4f8cff; --blue-2: #7aa7ff; --amber: #ffb547;
-  --radius: 22px; --max: 1120px;
+  --max: 1140px;
+  /* ordered-dither dot tiles (2x2 checker at 4px), the page's one texture */
+  --dots-blue: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Crect width='2' height='2' fill='%234f8cff'/%3E%3Crect x='2' y='2' width='2' height='2' fill='%234f8cff'/%3E%3C/svg%3E");
+  --dots-navy: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Crect width='2' height='2' fill='%23151a2e'/%3E%3Crect x='2' y='2' width='2' height='2' fill='%23151a2e'/%3E%3C/svg%3E");
+  --dots-amber: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Crect width='2' height='2' fill='%23ffb547'/%3E%3C/svg%3E");
 }
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 body { margin: 0; background: var(--ink); color: var(--fg); font: 17px/1.6 "DM Sans", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased; overflow-x: hidden; }
 a { color: inherit; }
-h1, h2, h3 { font-family: "Bricolage Grotesque", system-ui, sans-serif; line-height: 1.05; margin: 0; letter-spacing: -0.02em; }
+img { display: block; max-width: 100%; height: auto; }
+h1, h2, h3 { font-family: "Bricolage Grotesque", system-ui, sans-serif; line-height: 1.04; margin: 0; letter-spacing: -0.02em; }
 .wrap { width: 100%; max-width: var(--max); margin: 0 auto; padding: 0 20px; }
-.btn { display: inline-flex; align-items: center; gap: 10px; padding: 14px 22px; border-radius: 999px; font-weight: 700;
-  text-decoration: none; transition: transform .15s, background .15s, box-shadow .15s; }
-.btn:hover { transform: translateY(-2px); }
-.btn-primary { background: var(--blue); color: #fff; box-shadow: 0 10px 30px -10px rgba(79,140,255,.8); }
-.btn-primary:hover { background: var(--blue-2); }
-.btn-ghost { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.14); backdrop-filter: blur(8px); }
-.eyebrow { color: var(--amber); font-weight: 700; font-size: 14px; letter-spacing: .12em; text-transform: uppercase; }
+.px { font-family: "Silkscreen", ui-monospace, monospace; font-weight: 400; letter-spacing: .02em; }
+.eyebrow { font: 400 13px "Silkscreen", ui-monospace, monospace; color: var(--amber); text-transform: uppercase; letter-spacing: .06em;
+  display: inline-flex; align-items: center; gap: 10px; }
+.eyebrow::before { content: ""; width: 10px; height: 10px; background: var(--amber); }
+
+/* buttons: square, hard pixel shadow */
+.btn { display: inline-flex; align-items: center; gap: 10px; padding: 14px 22px; border-radius: 4px; font-weight: 700;
+  text-decoration: none; border: 2px solid transparent; transition: transform .12s, box-shadow .12s; }
+.btn:hover { transform: translate(-2px, -2px); }
+.btn:active { transform: translate(2px, 2px); box-shadow: 0 0 0 transparent; }
+.btn-primary { background: var(--blue); color: #fff; box-shadow: 5px 5px 0 #0d2f75; }
+.btn-primary:hover { box-shadow: 7px 7px 0 #0d2f75; }
+.btn-ghost { background: var(--ink); border-color: var(--line); box-shadow: 5px 5px 0 #05060a; }
+.btn-ghost:hover { border-color: var(--blue); box-shadow: 7px 7px 0 #05060a; }
+.btn small { font-weight: 500; opacity: .75; }
 
 /* nav */
 nav.top { position: absolute; inset: 0 0 auto; z-index: 5; }
 nav.top .wrap { display: flex; align-items: center; justify-content: space-between; height: 76px; }
 .brand { display: flex; align-items: center; gap: 12px; text-decoration: none; font: 800 21px "Bricolage Grotesque", sans-serif; }
-.brand img { width: 40px; height: auto; }
-nav.top ul { display: flex; gap: 28px; list-style: none; margin: 0; padding: 0; font-weight: 500; }
+.brand img { width: 40px; }
+nav.top ul { display: flex; gap: 26px; list-style: none; margin: 0; padding: 0; font-weight: 500; font-size: 15px; }
 nav.top ul a { text-decoration: none; color: var(--dim); }
 nav.top ul a:hover { color: var(--fg); }
 
 /* hero */
-.hero { position: relative; min-height: min(92vh, 860px); display: flex; align-items: center; padding: 120px 0 80px;
-  background: url(hero.jpg) 72% center / cover no-repeat; }
-.hero::before { content: ""; position: absolute; inset: 0;
-  background: linear-gradient(90deg, rgba(14,15,19,.97) 0%, rgba(14,15,19,.86) 38%, rgba(14,15,19,.2) 70%, rgba(14,15,19,.35) 100%),
-              linear-gradient(0deg, var(--ink) 0%, transparent 25%); }
-.hero .wrap { position: relative; }
-.hero h1 { font-size: clamp(44px, 7vw, 86px); max-width: 11ch; }
+.hero { position: relative; min-height: min(94vh, 880px); display: flex; align-items: center; padding: 120px 0 90px; overflow: hidden; }
+.hero .art { position: absolute; inset: 0; background: url(hero.jpg) 78% center / cover no-repeat; }
+.hero .art::after { content: ""; position: absolute; inset: 0;
+  background: linear-gradient(90deg, var(--ink) 0%, rgba(14,15,19,.92) 34%, rgba(14,15,19,.25) 62%, rgba(14,15,19,.1) 100%); }
+/* dithered fade into the page below */
+.hero::after { content: ""; position: absolute; inset: auto 0 0; height: 120px; background: var(--dots-navy);
+  -webkit-mask: linear-gradient(transparent, #000); mask: linear-gradient(transparent, #000); }
+.hero .wrap { position: relative; z-index: 1; }
+.hero h1 { font-size: clamp(46px, 7.4vw, 92px); max-width: 10ch; margin-top: 18px; }
 .hero h1 em { font-style: normal; color: var(--blue-2); }
-.hero p.lead { font-size: clamp(18px, 2vw, 21px); color: #c7cad6; max-width: 34ch; margin: 22px 0 32px; }
-.cta { display: flex; flex-wrap: wrap; gap: 12px; }
-.platforms { margin-top: 26px; color: var(--dim); font-size: 15px; }
+.cursor { display: inline-block; width: .45em; height: .1em; background: var(--amber); margin-left: .08em; vertical-align: .05em;
+  animation: blink 1.1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+.hero p.lead { font-size: clamp(18px, 2vw, 21px); color: #c7cad6; max-width: 36ch; margin: 22px 0 34px; }
+.cta { display: flex; flex-wrap: wrap; gap: 16px; }
+.trust { display: flex; flex-wrap: wrap; gap: 10px 22px; margin-top: 34px; padding: 0; list-style: none; color: var(--dim); font-size: 15px; }
+.trust li { display: flex; align-items: center; gap: 8px; }
+.trust li::before { content: ""; width: 8px; height: 8px; background: var(--blue); }
 
 /* sections */
-section { padding: 96px 0; }
-.head { max-width: 640px; margin-bottom: 48px; }
-.head h2 { font-size: clamp(34px, 4.6vw, 54px); margin: 10px 0 14px; }
-.head p { color: var(--dim); margin: 0; }
+section { padding: 100px 0; position: relative; }
+.head { max-width: 660px; margin-bottom: 52px; }
+.head h2 { font-size: clamp(34px, 4.8vw, 56px); margin: 14px 0 16px; }
+.head p { color: var(--dim); margin: 0; font-size: 18px; }
+.band { background: var(--ink-2); }
+.band::before, .band::after { content: ""; position: absolute; left: 0; right: 0; height: 64px; background: var(--dots-navy); }
+.band::before { top: -64px; -webkit-mask: linear-gradient(transparent, #000); mask: linear-gradient(transparent, #000); }
+.band::after { bottom: -64px; -webkit-mask: linear-gradient(#000, transparent); mask: linear-gradient(#000, transparent); }
 
-.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; counter-reset: step; }
-.step { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 28px; position: relative; }
-.step::before { counter-increment: step; content: counter(step); display: grid; place-items: center; width: 44px; height: 44px;
-  border-radius: 14px; background: var(--ink-2); color: var(--amber); font: 800 20px "Bricolage Grotesque", sans-serif; margin-bottom: 18px; }
+/* pains */
+.pains { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+.pain { border: 2px dashed var(--line); border-radius: 6px; padding: 24px; color: var(--dim); }
+.pain b { display: block; color: var(--fg); font: 800 21px/1.2 "Bricolage Grotesque", sans-serif; margin-bottom: 8px; }
+.answer { margin-top: 30px; font: 800 clamp(24px, 3vw, 32px)/1.2 "Bricolage Grotesque", sans-serif; }
+.answer em { font-style: normal; color: var(--amber); }
+
+/* steps */
+.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; counter-reset: step; }
+.step { background: var(--card); border: 2px solid var(--line); border-radius: 6px; padding: 28px; box-shadow: 6px 6px 0 #05060a; }
+.step::before { counter-increment: step; content: "0" counter(step); display: block; font: 400 30px "Silkscreen", monospace;
+  color: var(--amber); margin-bottom: 14px; }
 .step h3 { font-size: 23px; margin-bottom: 8px; }
 .step p { color: var(--dim); margin: 0; }
-.step code { background: var(--ink-2); padding: 2px 7px; border-radius: 6px; font-size: 14px; color: var(--fg); }
+code { font: 14px ui-monospace, "Cascadia Code", Menlo, monospace; background: var(--ink); border: 1px solid var(--line);
+  padding: 1px 7px; border-radius: 4px; color: var(--fg); }
 
-.features { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
-.feature { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px; }
-.feature .ico { font-size: 28px; line-height: 1; margin-bottom: 14px; }
-.feature h3 { font-size: 20px; margin-bottom: 6px; }
-.feature p { color: var(--dim); margin: 0; font-size: 15.5px; }
-.feature.wide { grid-column: span 2; background: linear-gradient(135deg, #1b2547, var(--card) 70%); }
+/* feature rows */
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center; }
+.row + .row { margin-top: 110px; }
+.row.flip .pic { order: 2; }
+.pic { position: relative; }
+.pic img { width: 100%; border: 2px solid var(--line); border-radius: 6px; position: relative; z-index: 1; }
+.pic::before { content: ""; position: absolute; inset: 18px -18px -18px 18px; background: var(--dots-blue); opacity: .55; border-radius: 6px; }
+.row.flip .pic::before { inset: 18px 18px -18px -18px; }
+.pic.warm::before { background: var(--dots-amber); opacity: .5; }
+.row h2 { font-size: clamp(32px, 4vw, 48px); margin: 14px 0 16px; }
+.row p { color: var(--dim); margin: 0 0 22px; font-size: 18px; }
+.checks { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.checks li { display: flex; gap: 12px; color: #c7cad6; }
+.checks li::before { content: "+"; font-family: "Silkscreen", monospace; color: var(--amber); flex: none; width: 14px; }
 
-/* gamepad spotlight */
-.pads { display: grid; grid-template-columns: 1.05fr 1fr; gap: 56px; align-items: center; }
-.pads ul { padding: 0; list-style: none; margin: 26px 0 0; display: grid; gap: 12px; }
-.pads li { display: flex; gap: 12px; color: #c7cad6; }
-.pads li::before { content: "✓"; color: var(--amber); font-weight: 700; }
-.players { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
-.phone { aspect-ratio: 16 / 9; border-radius: 22px; background: #10131d; border: 3px solid #2d3245; position: relative; overflow: hidden;
-  display: flex; align-items: center; justify-content: space-between; padding: 0 9%; box-shadow: 0 20px 40px -24px #000; }
-.phone .stick { width: 30%; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle at 50% 50%, #2f3650 0 32%, #1b2030 33%); }
-.phone .abxy { width: 30%; aspect-ratio: 1; position: relative; }
-.phone .abxy i { position: absolute; width: 34%; aspect-ratio: 1; border-radius: 50%; }
-.phone .abxy i:nth-child(1) { left: 33%; top: 0; background: #b8901a; }
-.phone .abxy i:nth-child(2) { left: 0; top: 33%; background: #2f63c0; }
-.phone .abxy i:nth-child(3) { right: 0; top: 33%; background: #b53229; }
-.phone .abxy i:nth-child(4) { left: 33%; bottom: 0; background: #2a8a45; }
-.phone .tag { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); font: 800 13px "Bricolage Grotesque", sans-serif;
-  padding: 3px 10px; border-radius: 999px; background: var(--c); color: #0e0f13; }
-.phone:nth-child(1) { --c: var(--blue-2); } .phone:nth-child(2) { --c: var(--amber); }
-.phone:nth-child(3) { --c: #7ee0a0; } .phone:nth-child(4) { --c: #ff8fa8; }
+/* small features */
+.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+.card { background: var(--card); border: 2px solid var(--line); border-radius: 6px; padding: 24px; }
+.card .tag { font: 400 12px "Silkscreen", monospace; color: var(--blue-2); text-transform: uppercase; }
+.card h3 { font-size: 20px; margin: 10px 0 6px; }
+.card p { color: var(--dim); margin: 0; font-size: 15.5px; }
 
-/* numbers */
-.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); border-radius: var(--radius); overflow: hidden; }
-.stat { background: var(--card); padding: 32px 28px; }
-.stat b { display: block; font: 800 clamp(34px, 4vw, 48px) "Bricolage Grotesque", sans-serif; color: var(--blue-2); }
-.stat span { color: var(--dim); }
+/* under the hood */
+.hood { display: grid; grid-template-columns: repeat(4, 1fr); border: 2px solid var(--line); border-radius: 6px; overflow: hidden; }
+.hood div { padding: 26px 22px; border-right: 2px solid var(--line); }
+.hood div:last-child { border-right: 0; }
+.hood b { display: block; font: 400 clamp(22px, 2.6vw, 30px) "Silkscreen", monospace; color: var(--blue-2); margin-bottom: 6px; }
+.hood span { color: var(--dim); font-size: 15px; }
+
+/* faq */
+.faq { max-width: 820px; }
+.faq details { border-bottom: 2px solid var(--line); }
+.faq summary { cursor: pointer; list-style: none; padding: 22px 40px 22px 0; position: relative;
+  font: 800 20px/1.3 "Bricolage Grotesque", sans-serif; }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after { content: "+"; position: absolute; right: 4px; top: 18px; font: 400 24px "Silkscreen", monospace; color: var(--amber); }
+.faq details[open] summary::after { content: "-"; }
+.faq details p { color: var(--dim); margin: -6px 0 22px; }
 
 /* downloads */
-.downloads { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
-.dl { display: block; text-decoration: none; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
-  padding: 24px; transition: border-color .15s, transform .15s; }
-.dl:hover { border-color: var(--blue); transform: translateY(-3px); }
-.dl .os { font: 800 21px "Bricolage Grotesque", sans-serif; }
+.downloads { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+.dl { display: block; text-decoration: none; background: var(--card); border: 2px solid var(--line); border-radius: 6px;
+  padding: 24px; box-shadow: 6px 6px 0 #05060a; transition: transform .12s, border-color .12s, box-shadow .12s; }
+.dl:hover { border-color: var(--blue); transform: translate(-2px, -2px); box-shadow: 8px 8px 0 #05060a; }
+.dl.you { border-color: var(--blue); box-shadow: 6px 6px 0 #0d2f75; }
+.dl .os { font: 800 22px "Bricolage Grotesque", sans-serif; }
 .dl small { display: block; color: var(--dim); margin-top: 4px; font-size: 14px; }
-.dl .arrow { color: var(--blue-2); font-weight: 700; margin-top: 16px; display: block; }
-.note { color: var(--dim); font-size: 15px; margin-top: 22px; }
-.note code { background: var(--card); padding: 2px 7px; border-radius: 6px; color: var(--fg); }
+.dl .arrow { font: 400 13px "Silkscreen", monospace; color: var(--blue-2); margin-top: 18px; display: block; text-transform: uppercase; }
+.dl .yours { display: none; font: 400 11px "Silkscreen", monospace; color: var(--amber); text-transform: uppercase; margin-bottom: 6px; }
+.dl.you .yours { display: block; }
+.note { color: var(--dim); font-size: 15px; margin-top: 26px; }
 
-footer { border-top: 1px solid var(--line); padding: 36px 0 48px; color: var(--dim); font-size: 15px; }
+/* final call */
+.final { text-align: center; }
+.final h2 { font-size: clamp(36px, 5.4vw, 64px); max-width: 16ch; margin: 16px auto 18px; }
+.final p { color: var(--dim); margin: 0 auto 32px; max-width: 46ch; font-size: 18px; }
+.final .cta { justify-content: center; }
+
+footer { border-top: 2px solid var(--line); padding: 36px 0 48px; color: var(--dim); font-size: 15px; }
 footer .wrap { display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; align-items: center; }
+footer a { color: var(--fg); }
 
 @media (max-width: 900px) {
-  .features { grid-template-columns: repeat(2, 1fr); }
-  .downloads { grid-template-columns: repeat(2, 1fr); }
-  .pads { grid-template-columns: 1fr; gap: 40px; }
   nav.top ul { display: none; }
+  .row { grid-template-columns: 1fr; gap: 40px; }
+  .row.flip .pic { order: 0; }
+  .grid, .downloads { grid-template-columns: repeat(2, 1fr); }
+  .hood { grid-template-columns: repeat(2, 1fr); }
+  .hood div:nth-child(2) { border-right: 0; }
+  .hood div:nth-child(-n+2) { border-bottom: 2px solid var(--line); }
+  .pains, .steps { grid-template-columns: 1fr; }
 }
 @media (max-width: 640px) {
-  section { padding: 72px 0; }
-  .hero { background-position: 78% center; min-height: auto; padding-top: 110px; }
-  .hero::before { background: linear-gradient(0deg, rgba(14,15,19,1) 8%, rgba(14,15,19,.82) 55%, rgba(14,15,19,.55) 100%); }
-  .steps, .stats { grid-template-columns: 1fr; }
-  .features { grid-template-columns: 1fr; }
-  .feature.wide { grid-column: auto; }
-  .downloads { grid-template-columns: 1fr; }
+  section { padding: 76px 0; }
+  .row + .row { margin-top: 80px; }
+  .hero { min-height: auto; padding: 300px 0 70px; }
+  .hero .art { background-position: 70% top; background-size: auto 380px; }
+  .hero .art::after { background: linear-gradient(0deg, var(--ink) 52%, rgba(14,15,19,.6) 72%, rgba(14,15,19,.1) 100%); }
+  .grid, .downloads, .hood { grid-template-columns: 1fr; }
+  .hood div { border-right: 0; border-bottom: 2px solid var(--line); }
+  .hood div:last-child { border-bottom: 0; }
+  .pic::before { inset: 12px -12px -12px 12px; }
+  .row.flip .pic::before { inset: 12px 12px -12px -12px; }
+  .btn { width: 100%; justify-content: center; }
 }
-@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .btn, .dl { transition: none; } }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .btn, .dl { transition: none; }
+  .cursor { animation: none; }
+}
 </style>
 </head>
 <body>
@@ -145,7 +210,7 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 16px; justify-content: space
     <ul>
       <li><a href="#how">How it works</a></li>
       <li><a href="#features">Features</a></li>
-      <li><a href="#gamepads">Gamepads</a></li>
+      <li><a href="#faq">FAQ</a></li>
       <li><a href="#download">Download</a></li>
       <li><a data-repo href="#">GitHub</a></li>
     </ul>
@@ -153,84 +218,177 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 16px; justify-content: space
 </nav>
 
 <header class="hero">
+  <div class="art" role="img" aria-label="A person on a sofa at night, controlling the TV with a glowing phone"></div>
   <div class="wrap">
     <span class="eyebrow">Free &amp; open source</span>
-    <h1>Run your PC <em>from the sofa.</em></h1>
-    <p class="lead">Your phone becomes the remote, the touchpad, the keyboard and a real game controller. No app to install on the phone: scan a QR code and you're in.</p>
+    <h1>Run your PC <em>from the sofa.</em><span class="cursor" aria-hidden="true"></span></h1>
+    <p class="lead">Your phone becomes the remote, the touchpad, the keyboard and a real game controller. Run one file on the PC, scan the QR code, done.</p>
     <div class="cta">
-      <a class="btn btn-primary" href="#download">Download for PC</a>
-      <a class="btn btn-ghost" data-repo="/releases/latest/download/sofa-remote-android.apk" href="#">Android app</a>
+      <a class="btn btn-primary" id="get" href="#download">Download <small id="get-os"></small></a>
+      <a class="btn btn-ghost" href="#how">See how it works</a>
     </div>
-    <div class="platforms">Windows · Linux · macOS · any phone browser</div>
+    <ul class="trust">
+      <li>No account</li><li>No cloud</li><li>Windows · Linux · macOS</li><li>Any phone browser</li>
+    </ul>
   </div>
 </header>
 
-<section id="how">
+<section>
+  <div class="wrap">
+    <div class="head">
+      <span class="eyebrow">Sound familiar?</span>
+      <h2>The PC is on the TV. You're on the sofa.</h2>
+    </div>
+    <div class="pains">
+      <div class="pain"><b>Up again to pause.</b>The keyboard is on the desk, the movie is on the TV, and you're definitely not getting up again.</div>
+      <div class="pain"><b>Typing from three metres.</b>A wireless keyboard on your lap, a search box you can barely read, and a touchpad that's never where you need it.</div>
+      <div class="pain"><b>Friends over, one controller.</b>Everyone wants to play. There's one gamepad, and it needs charging.</div>
+    </div>
+    <p class="answer">Everyone already holds the fix: <em>their phone.</em></p>
+  </div>
+</section>
+
+<section id="how" class="band">
   <div class="wrap">
     <div class="head">
       <span class="eyebrow">How it works</span>
       <h2>Thirty seconds to the couch.</h2>
-      <p>One small program on the PC. Nothing to sign up for, nothing in the cloud: it all stays on your Wi-Fi.</p>
+      <p>One small program on the PC, with the phone app built in. Nothing to sign up for, and nothing leaves your Wi-Fi.</p>
     </div>
     <div class="steps">
-      <div class="step"><h3>Run it on the PC</h3><p>Start <code>sofa-remote</code>. It's a single file, about 5 MB, with the phone app built in.</p></div>
-      <div class="step"><h3>Scan the QR code</h3><p>Point the phone camera at the code it prints. The link carries its own access key.</p></div>
+      <div class="step"><h3>Run it on the PC</h3><p>Start <code>sofa-remote</code>. It's a single file: no installer, no account, no setup screens.</p></div>
+      <div class="step"><h3>Scan the QR code</h3><p>Point the phone camera at the code it shows. The link carries its own access key, so only your phones get in.</p></div>
       <div class="step"><h3>Sit back</h3><p>Play, pause, scroll, type, game. Add more PCs and switch between them from the top bar.</p></div>
     </div>
   </div>
 </section>
 
-<section id="features" style="padding-top:0">
+<section id="features">
   <div class="wrap">
-    <div class="head">
-      <span class="eyebrow">Features</span>
-      <h2>Everything a remote should have been.</h2>
+    <div class="row">
+      <div class="pic"><img src="img/movie-night.jpg" alt="Watching a film on the TV with the phone as the remote" width="1200" height="800" loading="lazy"></div>
+      <div>
+        <span class="eyebrow">Movie night</span>
+        <h2>The remote your PC never came with.</h2>
+        <p>Play, pause, skip, seek and volume from any app: browsers, players, streaming sites. Big buttons you can hit in the dark.</p>
+        <ul class="checks">
+          <li>Media keys, volume and fullscreen on the first screen</li>
+          <li>A touchpad that moves as your finger moves: tap to click, hold to right-click, tap-and-drag to select</li>
+          <li>Android app: the phone's own volume buttons control the PC, also with the screen locked</li>
+        </ul>
+      </div>
     </div>
-    <div class="features">
-      <div class="feature wide"><div class="ico">🖐️</div><h3>A touchpad that feels local</h3><p>Moves go out the moment your finger moves, over UDP, with smoothed acceleration. Tap to click, hold to right-click, tap-and-drag to select.</p></div>
-      <div class="feature"><div class="ico">⏯️</div><h3>Media &amp; volume</h3><p>Play, skip, seek and volume, from any app.</p></div>
-      <div class="feature"><div class="ico">🎤</div><h3>Type or talk</h3><p>Live keyboard with voice typing, straight into the focused field.</p></div>
-      <div class="feature"><div class="ico">📋</div><h3>Shared clipboard</h3><p>Send links and text both ways, or open a URL on the PC.</p></div>
-      <div class="feature"><div class="ico">✏️</div><h3>Your own layouts</h3><p>Drag buttons, sticks and pads around on the phone. Macros included.</p></div>
-      <div class="feature"><div class="ico">🖥️</div><h3>Many PCs</h3><p>One phone, every computer in the house. One button can hit them all.</p></div>
-      <div class="feature"><div class="ico">🔊</div><h3>Volume buttons</h3><p>The Android app turns the phone's own buttons into PC controls, even when locked.</p></div>
+
+    <div class="row flip">
+      <div class="pic warm"><img src="img/multiplayer.jpg" alt="Four people playing a game on the TV, each holding a phone as a controller" width="1200" height="800" loading="lazy"></div>
+      <div id="gamepads">
+        <span class="eyebrow">Couch co-op</span>
+        <h2>Every phone is a real controller.</h2>
+        <p>Each phone shows up on the PC as its own Xbox controller, so games, Steam and emulators just see gamepads. Grab a phone each and pick your players.</p>
+        <ul class="checks">
+          <li>Analog sticks, triggers, bumpers, d-pad and ABXY</li>
+          <li>Drop out and reconnect within 30 seconds: you keep your player slot</li>
+          <li>Windows: the driver it needs comes inside the download. Linux: built into the kernel</li>
+          <li>Prefer keyboard and mouse? A WASD + mouse-look layout is built in too</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="pic"><img src="img/voice-typing.jpg" alt="A phone keyboard with a microphone, sending text to the PC" width="1200" height="800" loading="lazy"></div>
+      <div>
+        <span class="eyebrow">Type or talk</span>
+        <h2>Search without squinting.</h2>
+        <p>Type on your phone's own keyboard and it lands in whatever is focused on the PC. Or tap the mic and just say it.</p>
+        <ul class="checks">
+          <li>Live typing, with a send button for search boxes</li>
+          <li>Voice typing with the phone's own speech recognizer</li>
+          <li>Shared clipboard: send links and text both ways, or open a URL on the PC</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="row flip">
+      <div class="pic warm"><img src="img/themes.jpg" alt="Five phones showing the remote in five colour themes" width="1200" height="800" loading="lazy"></div>
+      <div>
+        <span class="eyebrow">Make it yours</span>
+        <h2>Your buttons, your layout, your colours.</h2>
+        <p>Every screen is a layout you can change right on the phone. Move and resize anything, and give a button any key, shortcut, mouse action or macro.</p>
+        <ul class="checks">
+          <li>1,900+ clean icons to pick from, or text and emoji</li>
+          <li>Themes: Night, Light, Grape, Mint and a pink Bubblegum one</li>
+          <li>Ready-made layouts: Remote, Keyboard, Clipboard, Gamepad and Controller</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="pic"><img src="img/privacy.jpg" alt="A phone and a PC talking inside a house, under a lock" width="1200" height="800" loading="lazy"></div>
+      <div>
+        <span class="eyebrow">Private by design</span>
+        <h2>It never leaves your home.</h2>
+        <p>Your phone talks straight to your PC over your own network. No account to make, no server in between, nothing collected.</p>
+        <ul class="checks">
+          <li>Each PC makes its own access key; only phones that scanned it can connect</li>
+          <li>No telemetry, no ads, no sign-in</li>
+          <li>Open source: read every line on GitHub</li>
+        </ul>
+      </div>
     </div>
   </div>
 </section>
 
-<section id="gamepads" style="background:linear-gradient(180deg, var(--ink), #10142a 50%, var(--ink))">
-  <div class="wrap pads">
-    <div>
-      <span class="eyebrow">Gamepads</span>
-      <div class="head" style="margin:10px 0 0"><h2>Every phone is a real controller.</h2>
-      <p>Four friends, four phones, four players. Each phone shows up on the PC as its own Xbox controller, so couch co-op games, Steam and emulators just see gamepads.</p></div>
-      <ul>
-        <li>Analog sticks, triggers, bumpers, d-pad, ABXY</li>
-        <li>Reconnect within 30 seconds and keep your player slot</li>
-        <li>Windows via ViGEmBus, Linux via uinput</li>
-        <li>Prefer keyboard and mouse? A WASD + mouse-look layout is built in too</li>
-      </ul>
+<section class="band">
+  <div class="wrap">
+    <div class="head">
+      <span class="eyebrow">And also</span>
+      <h2>The small things that make it feel right.</h2>
     </div>
-    <div class="players" aria-hidden="true">
-      <div class="phone"><span class="tag">P1</span><span class="stick"></span><span class="abxy"><i></i><i></i><i></i><i></i></span></div>
-      <div class="phone"><span class="tag">P2</span><span class="stick"></span><span class="abxy"><i></i><i></i><i></i><i></i></span></div>
-      <div class="phone"><span class="tag">P3</span><span class="stick"></span><span class="abxy"><i></i><i></i><i></i><i></i></span></div>
-      <div class="phone"><span class="tag">P4</span><span class="stick"></span><span class="abxy"><i></i><i></i><i></i><i></i></span></div>
+    <div class="grid">
+      <div class="card"><span class="tag">Many PCs</span><h3>One phone, every computer</h3><p>Add each PC once, switch from the top bar. One button can even hit them all.</p></div>
+      <div class="card"><span class="tag">Many phones</span><h3>The whole family</h3><p>Every phone keeps its own theme, and all of them can be connected at once.</p></div>
+      <div class="card"><span class="tag">Android app</span><h3>Lock-screen controls</h3><p>Play, next and previous on the lock screen and in the notification. Exit from there too.</p></div>
+      <div class="card"><span class="tag">Macros</span><h3>One tap, many steps</h3><p>Chain keys, text and waits into one button: open an app, log in to a game, start a playlist.</p></div>
+      <div class="card"><span class="tag">Fullscreen</span><h3>Nothing in the way</h3><p>Gamepad layouts go edge to edge, so your thumbs only find buttons.</p></div>
+      <div class="card"><span class="tag">No install</span><h3>Any phone, any browser</h3><p>The phone app is a web page served by the PC. The Android app is optional.</p></div>
     </div>
   </div>
 </section>
 
 <section>
   <div class="wrap">
-    <div class="stats">
-      <div class="stat"><b>3–7 bytes</b><span>per key press or mouse move</span></div>
-      <div class="stat"><b>UDP</b><span>over WebRTC: a lost packet never stalls the next one</span></div>
-      <div class="stat"><b>~0.1 ms</b><span>from network to OS input on the PC</span></div>
+    <div class="head">
+      <span class="eyebrow">Under the hood</span>
+      <h2>Small, fast and boring in the best way.</h2>
+      <p>Written in Rust, with a tiny binary protocol, so a key press is a few bytes and never waits behind the one before.</p>
+    </div>
+    <div class="hood">
+      <div><b>1 file</b><span>per platform, phone app included</span></div>
+      <div><b>3-7 B</b><span>per key press or mouse move</span></div>
+      <div><b>UDP</b><span>over WebRTC: a lost packet never stalls the next one</span></div>
+      <div><b>0 €</b><span>free and open source, forever</span></div>
     </div>
   </div>
 </section>
 
-<section id="download" style="padding-top:0">
+<section id="faq" class="band">
+  <div class="wrap">
+    <div class="head">
+      <span class="eyebrow">FAQ</span>
+      <h2>Good questions.</h2>
+    </div>
+    <div class="faq">
+      <details><summary>Do I need to install an app on my phone?</summary><p>No. The PC serves the remote as a web page: scan the QR code and it opens in the phone's browser, iPhone or Android. The optional Android app adds the volume buttons, lock-screen controls and voice typing everywhere.</p></details>
+      <details><summary>Is it safe to have on my network?</summary><p>Only phones with the PC's access key can connect, and the key is in the QR code it shows you. Nothing goes through the internet and nothing is collected. You can make a new key any time with <code>--new-key</code>, which locks out every phone that had the old one.</p></details>
+      <details><summary>Which games work with the phone gamepads?</summary><p>Anything that supports an Xbox controller: Steam, most PC games and emulators. Each phone is its own controller, so local multiplayer games see separate players.</p></details>
+      <details><summary>What's the driver on Windows?</summary><p>Windows needs a driver for virtual controllers. Sofa Remote uses ViGEmBus, the open-source driver many controller tools use, and ships its official installer inside the download. The first time you use a gamepad, Windows asks once for permission. It's also on every release page as its own file.</p></details>
+      <details><summary>Does it work on a Mac?</summary><p>Yes, except the gamepads: macOS has no way to add a virtual controller, so the keyboard-and-mouse game layout is there instead.</p></details>
+      <details><summary>What does it cost?</summary><p>Nothing. It's open source: free to use, read and change.</p></details>
+    </div>
+  </div>
+</section>
+
+<section id="download">
   <div class="wrap">
     <div class="head">
       <span class="eyebrow">Download</span>
@@ -238,12 +396,24 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 16px; justify-content: space
       <p>One file per platform. Run it, scan the code, done.</p>
     </div>
     <div class="downloads">
-      <a class="dl" data-repo="/releases/latest/download/sofa-remote-windows-x64.exe" href="#"><span class="os">Windows</span><small>64-bit .exe</small><span class="arrow">Download →</span></a>
-      <a class="dl" data-repo="/releases/latest/download/sofa-remote-linux-x64" href="#"><span class="os">Linux</span><small>x64 · ARM64 on the releases page</small><span class="arrow">Download →</span></a>
-      <a class="dl" data-repo="/releases/latest/download/sofa-remote-macos-arm64" href="#"><span class="os">macOS</span><small>Apple silicon · Intel on the releases page</small><span class="arrow">Download →</span></a>
-      <a class="dl" data-repo="/releases/latest/download/sofa-remote-android.apk" href="#"><span class="os">Android</span><small>Optional app, Android 8+</small><span class="arrow">Download →</span></a>
+      <a class="dl" data-os="windows" data-repo="/releases/latest/download/sofa-remote-windows-x64.exe" href="#"><span class="yours">Your system</span><span class="os">Windows</span><small>64-bit .exe, gamepad driver included</small><span class="arrow">Download →</span></a>
+      <a class="dl" data-os="linux" data-repo="/releases/latest/download/sofa-remote-linux-x64" href="#"><span class="yours">Your system</span><span class="os">Linux</span><small>x64 · ARM64 on the releases page</small><span class="arrow">Download →</span></a>
+      <a class="dl" data-os="mac" data-repo="/releases/latest/download/sofa-remote-macos-arm64" href="#"><span class="yours">Your system</span><span class="os">macOS</span><small>Apple silicon · Intel on the releases page</small><span class="arrow">Download →</span></a>
+      <a class="dl" data-os="android" data-repo="/releases/latest/download/sofa-remote-android.apk" href="#"><span class="yours">Your phone</span><span class="os">Android</span><small>Optional app, Android 8+</small><span class="arrow">Download →</span></a>
     </div>
-    <p class="note">On Linux and macOS, make it executable first: <code>chmod +x sofa-remote-*</code>. All builds and release notes are on the <a data-repo="/releases" href="#">releases page</a>.</p>
+    <p class="note">On Linux and macOS, make it executable first: <code>chmod +x sofa-remote-*</code>. Every build, the gamepad driver installer and the release notes are on the <a data-repo="/releases" href="#">releases page</a>.</p>
+  </div>
+</section>
+
+<section class="final band">
+  <div class="wrap">
+    <span class="eyebrow">Ready?</span>
+    <h2>Stay on the sofa. Your phone's got this.</h2>
+    <p>Free, open source, and running in under a minute.</p>
+    <div class="cta">
+      <a class="btn btn-primary" href="#download">Download Sofa Remote</a>
+      <a class="btn btn-ghost" data-repo href="#">Star it on GitHub</a>
+    </div>
   </div>
 </section>
 
@@ -258,10 +428,22 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 16px; justify-content: space
 // Links point at this repository: worked out from the GitHub Pages address (owner.github.io/repo),
 // otherwise the fallback below.
 (() => {
-  const FALLBACK = 'https://github.com/OWNER/sofa-remote';
+  const FALLBACK = 'https://github.com/karcisway/sofa-remote';
   const host = location.hostname, seg = location.pathname.split('/').filter(Boolean)[0];
   const repo = host.endsWith('.github.io') && seg ? `https://github.com/${host.split('.')[0]}/${seg}` : FALLBACK;
   document.querySelectorAll('[data-repo]').forEach(a => { a.href = repo + a.dataset.repo; });
+
+  // Highlight this visitor's download and point the hero button straight at it
+  const ua = navigator.userAgent;
+  const os = /Android/i.test(ua) ? 'android' : /Windows/i.test(ua) ? 'windows' : /Mac/i.test(ua) && !/iPhone|iPad/i.test(ua) ? 'mac'
+    : /Linux/i.test(ua) ? 'linux' : null;
+  const card = os && document.querySelector(`.dl[data-os="${os}"]`);
+  if (!card) return;
+  card.classList.add('you');
+  if (os === 'android') return; // the PC download is what they need first; keep the button on the list
+  const get = document.getElementById('get');
+  get.href = card.href;
+  document.getElementById('get-os').textContent = 'for ' + card.querySelector('.os').textContent;
 })();
 </script>
 </body>

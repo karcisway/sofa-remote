@@ -17,6 +17,18 @@ up front; the technical detail (UDP, bytes, latency) comes as proof further down
 Keep clear space around the mark of about half its height. Don't recolour the screen or the
 cushions, don't add outlines or shadows, and don't put it on the blue (the screen disappears).
 
+## Artwork
+
+Illustrations are minimalist and retro: ordered (Bayer) dithering and halftone dots in the brand
+colours below, simple bold shapes, no text in the image. The landing page repeats it with a 2x2
+dot texture, square buttons with hard pixel shadows and Silkscreen for small labels.
+
+| File | Use |
+| --- | --- |
+| `concepts/dither/hero-dither.png` | Landing page hero (`docs/hero.jpg`) |
+| `posts/*.png` | One image per social post and landing page section (`docs/img/*.jpg`); prompts in `posts/jobs.json` |
+| `social.html` | Source of the 1200x630 share image `docs/social.jpg`: `chrome --headless --screenshot --window-size=1200,630 brand/social.html` |
+
 ## Colours
 
 | Name | Hex | Use |

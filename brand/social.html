@@ -1,0 +1,25 @@
+<!doctype html>
+<!-- Source of docs/social.jpg (1200x630 share image). Render: chrome --headless --screenshot --window-size=1200,630 -->
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,800&family=DM+Sans:wght@500&family=Silkscreen&display=swap" rel="stylesheet">
+<style>
+html, body { margin: 0; width: 1200px; height: 630px; overflow: hidden; background: #0e0f13; color: #e8e9ee; }
+.art { position: absolute; inset: 0; background: url(../docs/hero.jpg) 100% center / auto 630px no-repeat; }
+.art::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, #0e0f13 0%, rgba(14,15,19,.9) 42%, rgba(14,15,19,.1) 72%); }
+.box { position: absolute; left: 72px; top: 0; bottom: 0; display: flex; flex-direction: column; justify-content: center; width: 640px; }
+.brand { display: flex; align-items: center; gap: 16px; font: 800 34px "Bricolage Grotesque", sans-serif; }
+.brand img { width: 64px; }
+h1 { font: 800 78px/1.02 "Bricolage Grotesque", sans-serif; letter-spacing: -0.02em; margin: 34px 0 22px; }
+h1 em { font-style: normal; color: #7aa7ff; }
+p { font: 500 26px/1.4 "DM Sans", sans-serif; color: #c7cad6; margin: 0; max-width: 24ch; }
+.tag { margin-top: 34px; font: 400 18px "Silkscreen", monospace; color: #ffb547; text-transform: uppercase; display: flex; gap: 12px; align-items: center; }
+.tag::before { content: ""; width: 14px; height: 14px; background: #ffb547; }
+</style></head><body>
+<div class="art"></div>
+<div class="box">
+  <div class="brand"><img src="logo-on-dark-256.png" alt="">Sofa Remote</div>
+  <h1>Run your PC <em>from the sofa.</em></h1>
+  <p>Remote, touchpad, keyboard and a real gamepad for every phone.</p>
+  <div class="tag">Free · open source · no account</div>
+</div>
+</body></html>
