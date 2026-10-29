@@ -1,0 +1,9 @@
+{
+  "prompt": "Four smartphones held horizontally by four pairs of hands around a coffee table, each phone screen showing a simple game controller layout, a big TV in the background with four tiny abstract player shapes. Minimalist retro illustration with strong ordered Bayer dithering and halftone dot shading, like an old Macintosh or Game Boy picture. Very limited palette only: near-black navy (#0e0f13), deep navy (#151a2e), bright blue (#4f8cff), warm amber (#ffb547), off-white (#e8e9ee). Simple bold shapes, lots of calm empty space, no text, no letters, no numbers, no logos, no UI text.",
+  "model": "gpt-image-2",
+  "size": "1536x1024",
+  "quality": "medium",
+  "background": "auto",
+  "edit": [],
+  "sha256": "d5897562f5fc5e78d6cd9bc06bfd1cad3c189f7804b574b9631b772d8eb46995"
+}

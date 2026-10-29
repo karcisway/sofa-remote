@@ -1,0 +1,9 @@
+{
+  "prompt": "A cozy rounded sofa seen from behind, a person's hand resting on the armrest holding a phone with a glowing play/pause symbol, a large TV across the dark room glowing with a soft blue movie scene. Minimalist retro illustration with strong ordered Bayer dithering and halftone dot shading, like an old Macintosh or Game Boy picture. Very limited palette only: near-black navy (#0e0f13), deep navy (#151a2e), bright blue (#4f8cff), warm amber (#ffb547), off-white (#e8e9ee). Simple bold shapes, lots of calm empty space, no text, no letters, no numbers, no logos, no UI text.",
+  "model": "gpt-image-2",
+  "size": "1536x1024",
+  "quality": "medium",
+  "background": "auto",
+  "edit": [],
+  "sha256": "552f62c5e6c712cf399a158208c127077d0e8c630d9237e24b9f9b420979b0c9"
+}

@@ -1,0 +1,44 @@
+[
+ {
+  "out": "launch.png",
+  "size": "1536x1024",
+  "quality": "medium",
+  "prompt": "A smartphone floating in the centre, its screen glowing blue and showing a simple grid of rounded buttons and a d-pad, a faint dithered glow around it, a big monitor silhouette far behind it. Minimalist retro illustration with strong ordered Bayer dithering and halftone dot shading, like an old Macintosh or Game Boy picture. Very limited palette only: near-black navy (#0e0f13), deep navy (#151a2e), bright blue (#4f8cff), warm amber (#ffb547), off-white (#e8e9ee). Simple bold shapes, lots of calm empty space, no text, no letters, no numbers, no logos, no UI text."
+ },
+ {
+  "out": "multiplayer.png",
+  "size": "1536x1024",
+  "quality": "medium",
+  "prompt": "Four smartphones held horizontally by four pairs of hands around a coffee table, each phone screen showing a simple game controller layout, a big TV in the background with four tiny abstract player shapes. Minimalist retro illustration with strong ordered Bayer dithering and halftone dot shading, like an old Macintosh or Game Boy picture. Very limited palette only: near-black navy (#0e0f13), deep navy (#151a2e), bright blue (#4f8cff), warm amber (#ffb547), off-white (#e8e9ee). Simple bold shapes, lots of calm empty space, no text, no letters, no numbers, no logos, no UI text."
+ },
+ {
+  "out": "movie-night.png",
+  "size": "1536x1024",
+  "quality": "medium",
+  "prompt": "A cozy rounded sofa seen from behind, a person's hand resting on the armrest holding a phone with a glowing play/pause symbol, a large TV across the dark room glowing with a soft blue movie scene. Minimalist retro illustration with strong ordered Bayer dithering and halftone dot shading, like an old Macintosh or Game Boy picture. Very limited palette only: near-black navy (#0e0f13), deep navy (#151a2e), bright blue (#4f8cff), warm amber (#ffb547), off-white (#e8e9ee). Simple bold shapes, lots of calm empty space, no text, no letters, no numbers, no logos, no UI text."
+ },
+ {
+  "out": "voice-typing.png",
+  "size": "1536x1024",
+  "quality": "medium",
+  "prompt": "A phone showing a simple on-screen keyboard and a large microphone symbol with dithered sound waves flowing from it toward a distant monitor showing a search bar shape. Minimalist retro illustration with strong ordered Bayer dithering and halftone dot shading, like an old Macintosh or Game Boy picture. Very limited palette only: near-black navy (#0e0f13), deep navy (#151a2e), bright blue (#4f8cff), warm amber (#ffb547), off-white (#e8e9ee). Simple bold shapes, lots of calm empty space, no text, no letters, no numbers, no logos, no UI text."
+ },
+ {
+  "out": "privacy.png",
+  "size": "1536x1024",
+  "quality": "medium",
+  "prompt": "A small house silhouette containing a phone and a PC connected by a short dotted line inside a dithered home Wi-Fi dome, a closed padlock symbol, the outside world dark and empty. Minimalist retro illustration with strong ordered Bayer dithering and halftone dot shading, like an old Macintosh or Game Boy picture. Very limited palette only: near-black navy (#0e0f13), deep navy (#151a2e), bright blue (#4f8cff), warm amber (#ffb547), off-white (#e8e9ee). Simple bold shapes, lots of calm empty space, no text, no letters, no numbers, no logos, no UI text."
+ },
+ {
+  "out": "themes.png",
+  "size": "1536x1024",
+  "quality": "medium",
+  "prompt": "Five identical smartphones in a row, fanned out, each showing the same simple button grid in a different colour mood: dark navy, light off-white, pink with tiny hearts, purple, mint green. Pink one slightly in front. Minimalist retro illustration with strong ordered Bayer dithering and halftone dot shading, like an old Macintosh or Game Boy picture. Very limited palette only: near-black navy (#0e0f13), deep navy (#151a2e), bright blue (#4f8cff), warm amber (#ffb547), off-white (#e8e9ee). Simple bold shapes, lots of calm empty space, no text, no letters, no numbers, no logos, no UI text. For the themes image, the pink (#ff8fc1) and purple (#9b7bff) and mint (#5fd3a6) screens are allowed as extra colours."
+ },
+ {
+  "out": "custom-layout.png",
+  "size": "1536x1024",
+  "quality": "medium",
+  "prompt": "A phone screen with a grid of rounded buttons, one button being lifted and dragged by a fingertip, little icons on the buttons (play, volume, arrow, star), dotted outline where it will drop. Minimalist retro illustration with strong ordered Bayer dithering and halftone dot shading, like an old Macintosh or Game Boy picture. Very limited palette only: near-black navy (#0e0f13), deep navy (#151a2e), bright blue (#4f8cff), warm amber (#ffb547), off-white (#e8e9ee). Simple bold shapes, lots of calm empty space, no text, no letters, no numbers, no logos, no UI text."
+ }
+]
