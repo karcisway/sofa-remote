@@ -27,7 +27,7 @@ dot texture, square buttons with hard pixel shadows and Silkscreen for small lab
 | --- | --- |
 | `concepts/dither/hero-dither.png` | Landing page hero (`docs/hero.jpg`) |
 | `posts/*.png` | One image per social post and landing page section (`docs/img/*.jpg`); prompts in `posts/jobs.json` |
-| `social.html` | Source of the 1200x630 share image `docs/social.jpg`: `chrome --headless --screenshot --window-size=1200,630 brand/social.html` |
+| `social.html` | Source of the 1200x630 share image `docs/share-card.jpg`: `chrome --headless --screenshot --window-size=1200,630 brand/social.html` |
 
 ## Colours
 
