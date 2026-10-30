@@ -1,5 +1,14 @@
 # Changes
 
+## Unreleased
+
+- Add power buttons: shut down, restart, sleep, hibernate, lock, sign out and screen off, as the
+  `power` action. Needs the PC server updated.
+- Add hold-to-confirm for buttons (tick it in the button editor, any hold time): a tint fills the
+  button and the action runs when it is full. Shut down, restart, hibernate and sign out use it by default.
+- Add a PC tab to the default layouts with the power buttons and window shortcuts (Alt+Tab, Ctrl+Tab,
+  Ctrl+Alt+Tab, Task view, Show desktop, Close window…). Existing layouts keep theirs until reset.
+
 ## 0.1.9 — 2026-10-28
 
 - Keep virtual controllers connected through temporary XInput queue delays. Retry failed phone

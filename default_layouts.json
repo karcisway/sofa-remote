@@ -549,6 +549,343 @@
       ]
     },
     {
+      "id": "pc",
+      "name": "PC",
+      "icon": "lucide:power",
+      "cols": 12,
+      "rowHeight": 64,
+      "widgets": [
+        {
+          "type": "label",
+          "x": 0,
+          "y": 0,
+          "w": 12,
+          "h": 1,
+          "text": "Power"
+        },
+        {
+          "type": "button",
+          "x": 0,
+          "y": 1,
+          "w": 3,
+          "h": 1,
+          "icon": "lucide:moon",
+          "label": "Sleep",
+          "action": {
+            "power": "sleep"
+          }
+        },
+        {
+          "type": "button",
+          "x": 3,
+          "y": 1,
+          "w": 3,
+          "h": 1,
+          "icon": "lucide:snowflake",
+          "label": "Hibernate",
+          "action": {
+            "power": "hibernate"
+          }
+        },
+        {
+          "type": "button",
+          "x": 6,
+          "y": 1,
+          "w": 3,
+          "h": 1,
+          "icon": "lucide:lock",
+          "label": "Lock",
+          "action": {
+            "power": "lock"
+          }
+        },
+        {
+          "type": "button",
+          "x": 9,
+          "y": 1,
+          "w": 3,
+          "h": 1,
+          "icon": "lucide:monitor-off",
+          "label": "Screen off",
+          "action": {
+            "power": "screenoff"
+          }
+        },
+        {
+          "type": "button",
+          "x": 0,
+          "y": 2,
+          "w": 4,
+          "h": 1,
+          "icon": "lucide:rotate-cw",
+          "label": "Restart",
+          "action": {
+            "power": "restart"
+          }
+        },
+        {
+          "type": "button",
+          "x": 4,
+          "y": 2,
+          "w": 4,
+          "h": 1,
+          "icon": "lucide:power",
+          "label": "Shut down",
+          "style": "danger",
+          "action": {
+            "power": "shutdown"
+          }
+        },
+        {
+          "type": "button",
+          "x": 8,
+          "y": 2,
+          "w": 4,
+          "h": 1,
+          "icon": "lucide:log-out",
+          "label": "Sign out",
+          "action": {
+            "power": "signout"
+          }
+        },
+        {
+          "type": "label",
+          "x": 0,
+          "y": 3,
+          "w": 12,
+          "h": 1,
+          "text": "Windows"
+        },
+        {
+          "type": "button",
+          "x": 0,
+          "y": 4,
+          "w": 4,
+          "h": 1,
+          "icon": "lucide:arrow-right-left",
+          "label": "Alt+Tab",
+          "action": {
+            "keys": [
+              "alt",
+              "tab"
+            ]
+          }
+        },
+        {
+          "type": "button",
+          "x": 4,
+          "y": 4,
+          "w": 4,
+          "h": 1,
+          "icon": "lucide:layout-grid",
+          "label": "All windows",
+          "action": {
+            "keys": [
+              "ctrl",
+              "alt",
+              "tab"
+            ]
+          }
+        },
+        {
+          "type": "button",
+          "x": 8,
+          "y": 4,
+          "w": 4,
+          "h": 1,
+          "icon": "lucide:layers",
+          "label": "Task view",
+          "action": {
+            "keys": [
+              "win",
+              "tab"
+            ]
+          }
+        },
+        {
+          "type": "button",
+          "x": 0,
+          "y": 5,
+          "w": 4,
+          "h": 1,
+          "icon": "lucide:chevron-right",
+          "label": "Next tab",
+          "action": {
+            "keys": [
+              "ctrl",
+              "tab"
+            ]
+          }
+        },
+        {
+          "type": "button",
+          "x": 4,
+          "y": 5,
+          "w": 4,
+          "h": 1,
+          "icon": "lucide:chevron-left",
+          "label": "Prev tab",
+          "action": {
+            "keys": [
+              "ctrl",
+              "shift",
+              "tab"
+            ]
+          }
+        },
+        {
+          "type": "button",
+          "x": 8,
+          "y": 5,
+          "w": 4,
+          "h": 1,
+          "icon": "lucide:x",
+          "label": "Close tab",
+          "action": {
+            "keys": [
+              "ctrl",
+              "w"
+            ]
+          }
+        },
+        {
+          "type": "button",
+          "x": 0,
+          "y": 6,
+          "w": 4,
+          "h": 1,
+          "icon": "lucide:monitor",
+          "label": "Desktop",
+          "action": {
+            "keys": [
+              "win",
+              "d"
+            ]
+          }
+        },
+        {
+          "type": "button",
+          "x": 4,
+          "y": 6,
+          "w": 4,
+          "h": 1,
+          "icon": "lucide:minimize-2",
+          "label": "Minimize",
+          "action": {
+            "keys": [
+              "win",
+              "down"
+            ]
+          }
+        },
+        {
+          "type": "button",
+          "x": 8,
+          "y": 6,
+          "w": 4,
+          "h": 1,
+          "icon": "lucide:maximize-2",
+          "label": "Maximize",
+          "action": {
+            "keys": [
+              "win",
+              "up"
+            ]
+          }
+        },
+        {
+          "type": "button",
+          "x": 0,
+          "y": 7,
+          "w": 4,
+          "h": 1,
+          "icon": "lucide:square-x",
+          "label": "Close window",
+          "confirm": true,
+          "action": {
+            "keys": [
+              "alt",
+              "f4"
+            ]
+          }
+        },
+        {
+          "type": "button",
+          "x": 4,
+          "y": 7,
+          "w": 4,
+          "h": 1,
+          "icon": "lucide:gauge",
+          "label": "Task manager",
+          "action": {
+            "keys": [
+              "ctrl",
+              "shift",
+              "esc"
+            ]
+          }
+        },
+        {
+          "type": "button",
+          "x": 8,
+          "y": 7,
+          "w": 4,
+          "h": 1,
+          "icon": "lucide:camera",
+          "label": "Screenshot",
+          "action": {
+            "keys": [
+              "win",
+              "shift",
+              "s"
+            ]
+          }
+        },
+        {
+          "type": "button",
+          "x": 0,
+          "y": 8,
+          "w": 4,
+          "h": 1,
+          "icon": "lucide:house",
+          "label": "Start",
+          "action": {
+            "key": "win"
+          }
+        },
+        {
+          "type": "button",
+          "x": 4,
+          "y": 8,
+          "w": 4,
+          "h": 1,
+          "icon": "lucide:terminal",
+          "label": "Run",
+          "action": {
+            "keys": [
+              "win",
+              "r"
+            ]
+          }
+        },
+        {
+          "type": "button",
+          "x": 8,
+          "y": 8,
+          "w": 4,
+          "h": 1,
+          "icon": "lucide:folder-open",
+          "label": "Files",
+          "action": {
+            "keys": [
+              "win",
+              "e"
+            ]
+          }
+        }
+      ]
+    },
+    {
       "id": "gamepad",
       "name": "Gamepad",
       "icon": "lucide:gamepad",
