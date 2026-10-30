@@ -40,7 +40,7 @@ sofa-remote [--port 8765] [--name "Living room"] [--data DIR] [--new-key] [--no-
 **More PCs:** run it on each one, then on the phone use the device menu (top bar) ›
 **Add / manage devices** and paste the other PC's link.
 
-**Themes:** ⚙ › Look: Night, Light, Bubblegum (pink), Grape and Mint. Each phone keeps its own.
+**Themes:** ⚙ › Look: Night, Light, Bubblegum (pink), Grape and Mint, or Custom: pick the background, button, text and accent colours yourself. Each phone keeps its own.
 
 **Wrong key:** when the PC made a new key, the phone asks for it. Type the key or paste the
 whole link.

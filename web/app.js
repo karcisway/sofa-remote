@@ -35,14 +35,60 @@ const THEMES = [
   { id: 'grape', name: 'Grape', dark: true, colors: ['#15101d', '#322447', '#b57bff'] },
   { id: 'mint', name: 'Mint', colors: ['#ecf9f3', '#d2f1e3', '#14a874'] },
 ];
+// The "Custom" theme: four colours picked under Settings › Look; the rest is worked out from them.
+const CUSTOM_DEFAULT = { bg: '#101820', card: '#1d2a36', fg: '#eaf2f8', acc: '#2ec4b6' };
+const customColors = () => ({ ...CUSTOM_DEFAULT, ...store.get('customTheme', {}) });
+const hexRgb = hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
+const mixHex = (a, b, t) => {
+  const [x, y] = [hexRgb(a), hexRgb(b)];
+  return '#' + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, '0')).join('');
+};
+const luminance = hex => { const [r, g, b] = hexRgb(hex); return (0.299 * r + 0.587 * g + 0.114 * b) / 255; };
+function customVars({ bg, card, fg, acc }) {
+  const dark = luminance(bg) < 0.45, onAcc = luminance(acc) > 0.55 ? '#111111' : '#ffffff';
+  const pick = (d, l) => (dark ? d : l);
+  return {
+    '--bg': bg, '--card': card, '--card2': mixHex(card, fg, 0.14), '--fg': fg, '--dim': mixHex(fg, bg, 0.5),
+    '--acc': acc, '--acc2': mixHex(acc, '#000000', 0.15), '--on-acc': onAcc, '--on-acc-dim': mixHex(onAcc, acc, 0.25),
+    '--ok': pick('#5fd17a', '#1f9d55'), '--err': pick('#ff6b6b', '#d93a40'), '--warn': pick('#f5c451', '#b7791f'),
+    '--on-bg': pick('#1f3b26', '#d9f4e3'), '--on-fg': pick('#8be39c', '#17713e'),
+    '--danger-bg': pick('#4a1d22', '#fde3e3'), '--danger-fg': pick('#ffb3b3', '#b42318'),
+    '--shade': pick('rgba(20,22,28,.85)', 'rgba(255,255,255,.9)'), '--backdrop': pick('rgba(0,0,0,.55)', 'rgba(30,32,40,.35)'),
+    '--shadow': pick('none', '0 1px 3px rgba(20,25,40,.12)'), 'color-scheme': pick('dark', 'light'),
+  };
+}
+// Every theme, the Custom one last (its tile shows the colours picked now)
+function themeList() {
+  const c = customColors();
+  return [...THEMES, { id: 'custom', name: 'Custom', dark: luminance(c.bg) < 0.45, text: c.fg, colors: [c.bg, c.card, c.acc] }];
+}
+let customKeys = [];
 function applyTheme(id) {
-  const theme = THEMES.find(t => t.id === id) || THEMES[0];
-  if (theme.id === 'night') delete document.documentElement.dataset.theme;
-  else document.documentElement.dataset.theme = theme.id;
+  const theme = themeList().find(t => t.id === id) || THEMES[0];
+  const root = document.documentElement;
+  customKeys.forEach(k => root.style.removeProperty(k));
+  customKeys = [];
+  if (theme.id === 'custom') {
+    for (const [k, v] of Object.entries(customVars(customColors()))) { root.style.setProperty(k, v); customKeys.push(k); }
+  }
+  if (theme.id === 'night') delete root.dataset.theme;
+  else root.dataset.theme = theme.id;
   document.querySelector('meta[name=theme-color]')?.setAttribute('content', theme.colors[0]);
   return theme.id;
 }
 applyTheme(store.get('theme', 'night'));
+
+const tileStyle = t => `--t-bg:${t.colors[0]};--t-fg:${t.text || (t.dark ? '#e8e9ee' : '#1b1d24')}`;
+// Refresh the theme tiles in place (the colour pickers must stay open while one is dragged)
+function syncTiles() {
+  const now = store.get('theme', 'night');
+  for (const el of document.querySelectorAll('.theme')) {
+    const t = themeList().find(x => x.id === el.dataset.id);
+    el.classList.toggle('on', now === t.id);
+    el.style.cssText = tileStyle(t);
+    el.querySelectorAll('i').forEach((i, n) => i.style.setProperty('--c', t.colors[n]));
+  }
+}
 
 // Icons: "lucide:play" is a Lucide icon from icons.svg (https://lucide.dev, ~1900 of them);
 // anything else (emoji, "F5", "Esc") is shown as text.
@@ -1050,14 +1096,14 @@ function toHex(css) {
 }
 // Colour field for the editor: the system colour picker plus the text (any CSS colour), and a reset.
 // `fallback` is the colour shown while the text is empty.
-function colorPicker(input, fallback) {
+function colorPicker(input, fallback, onChange = () => {}) {
   const picker = h('input', { type: 'color', 'aria-label': 'Pick a colour', class: 'color-swatch' });
   const sync = () => (picker.value = toHex(input.value) || toHex(fallback) || '#000000');
-  picker.addEventListener('input', () => { input.value = picker.value; });
-  input.addEventListener('input', sync);
+  picker.addEventListener('input', () => { input.value = picker.value; onChange(); });
+  input.addEventListener('input', () => { sync(); onChange(); });
   sync();
   return h('div', { class: 'color-field' }, picker, input,
-    h('button', { type: 'button', class: 'small', onclick: () => { input.value = ''; sync(); } }, 'Reset'));
+    h('button', { type: 'button', class: 'small', onclick: () => { input.value = ''; sync(); onChange(); } }, 'Reset'));
 }
 
 // The button styles drawn as real buttons (with the icon and label typed so far), one to tap.
@@ -1558,11 +1604,12 @@ const app = {
       check('Open the keyboard when a text field is selected on the PC', h('input', { type: 'checkbox', checked: store.get('autoKb', true),
         onchange: e => { store.set('autoKb', e.target.checked); if (!e.target.checked) this.hideKeyBar(); } })),
       h('h2', {}, 'Look'),
-      h('div', { class: 'themes' }, THEMES.map(t => h('button', {
-        class: 'theme' + ((store.get('theme', 'night') === t.id) ? ' on' : ''),
-        style: `--t-bg:${t.colors[0]};--t-fg:${t.dark ? '#e8e9ee' : '#1b1d24'}`,
-        onclick: () => { store.set('theme', applyTheme(t.id)); this.render(); },
+      h('div', { class: 'themes' }, themeList().map(t => h('button', {
+        class: 'theme' + ((store.get('theme', 'night') === t.id) ? ' on' : ''), 'data-id': t.id,
+        style: tileStyle(t),
+        onclick: () => { store.set('theme', applyTheme(t.id)); syncTiles(); },
       }, h('span', { class: 'swatch' }, t.colors.map(c => h('i', { style: `--c:${c}` }))), t.name))),
+      this.customLookSettings(),
       this.phoneButtonSettings(),
       h('h2', {}, 'Latency'),
       check('Show latency on screen', h('input', { type: 'checkbox', checked: store.get('showPing', false),
@@ -1608,6 +1655,25 @@ const app = {
 
   // Only inside the Android app, which exposes window.SofaAndroid: what the phone's hardware
   // buttons do (they work with the screen locked too, through a media notification).
+  // Four colour pickers for the Custom theme; picking one switches to it, live.
+  customLookSettings() {
+    const cur = customColors();
+    const rows = [['bg', 'Background'], ['card', 'Buttons and panels'], ['fg', 'Text'], ['acc', 'Accent']].map(([k, name]) => {
+      const text = h('input', { value: cur[k], placeholder: '#rrggbb', autocomplete: 'off', autocapitalize: 'off' });
+      const change = () => {
+        cur[k] = toHex(text.value) || CUSTOM_DEFAULT[k];
+        store.set('customTheme', cur);
+        store.set('theme', applyTheme('custom'));
+        syncTiles();
+      };
+      return h('div', { class: 'field' }, name, colorPicker(text, CUSTOM_DEFAULT[k], change));
+    });
+    return h('details', { class: 'custom-look', open: true },
+      h('summary', {}, 'Custom colours'),
+      h('div', { class: 'custom-fields' }, rows,
+        h('button', { class: 'small', onclick: () => { store.set('customTheme', {}); store.set('theme', applyTheme('custom')); this.render(); } }, 'Reset colours')));
+  },
+
   phoneButtonSettings() {
     const bridge = window.SofaAndroid;
     if (!bridge) return null;

@@ -208,6 +208,12 @@ dialog details summary { color:var(--dim); font-size:14px; padding:4px 0; }
 .sheet-buttons .danger { background:var(--danger-bg); color:var(--danger-fg); margin-right:auto; }
 button.wide.danger { background:var(--danger-bg); color:var(--danger-fg); }
 
+/* custom colours and background image (Settings › Look) */
+.custom-look summary { color:var(--dim); font-size:14px; padding:6px 0; }
+.custom-fields { display:flex; flex-direction:column; gap:12px; padding:6px 0 4px; }
+.settings .field { display:flex; flex-direction:column; gap:4px; font-size:13px; color:var(--dim); }
+.color-field input:not([type]), .color-field input[type=text] { background:var(--card); padding:10px 12px; }
+
 /* theme picker (Settings) */
 .themes { display:grid; grid-template-columns:repeat(auto-fill, minmax(96px, 1fr)); gap:10px; }
 .theme { border-radius:16px; padding:10px; text-align:left; border:2px solid transparent; display:flex; flex-direction:column; gap:8px;
