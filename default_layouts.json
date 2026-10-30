@@ -529,22 +529,13 @@
           "y": 5,
           "w": 12,
           "h": 3
-        }
-      ]
-    },
-    {
-      "id": "clipboard",
-      "name": "Clipboard",
-      "icon": "lucide:clipboard",
-      "cols": 12,
-      "rowHeight": 64,
-      "widgets": [
+        },
         {
           "type": "clipboard",
           "x": 0,
-          "y": 0,
+          "y": 8,
           "w": 12,
-          "h": 6
+          "h": 5
         }
       ]
     },

@@ -10,6 +10,8 @@
   Ctrl+Alt+Tab, Task view, Show desktop, Close window…). Existing layouts keep theirs until reset.
 - Add a theme editor (Settings › Look) with a live preview pinned on top. Picking a theme loads its values, which can then be
   changed: all colours, corner roundness, spacing, font, button shadow and background pattern.
+- Merge the Clipboard tab into the Keyboard tab in the default layouts: typing, shortcuts, touchpad and the shared
+  clipboard are on one page. Layouts you saved earlier keep their tabs until reset.
 
 ## 0.1.9 — 2026-10-28
 
