@@ -20,6 +20,7 @@ import android.view.WindowInsets
 import android.view.WindowInsetsController
 import android.view.inputmethod.InputMethodManager
 import android.webkit.JavascriptInterface
+import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
@@ -52,6 +53,8 @@ class MainActivity : Activity() {
         }
     }
     private var exiting = false
+    /** The web page's file picker (the background image), waiting for the system picker. */
+    private var filePicker: ValueCallback<Array<Uri>>? = null
     private var backPressedAt = 0L
     /** Language of a voice request waiting for the microphone permission. */
     private var pendingSpeech: String? = null
@@ -183,6 +186,19 @@ class MainActivity : Activity() {
                     systemBars(false)
                 }
                 override fun onHideCustomView() = hideFullscreen()
+
+                // <input type=file> in the page does nothing in a WebView unless the app opens the picker
+                override fun onShowFileChooser(view: WebView, callback: ValueCallback<Array<Uri>>, params: FileChooserParams): Boolean {
+                    filePicker?.onReceiveValue(null)
+                    filePicker = callback
+                    return try {
+                        startActivityForResult(params.createIntent(), FILE_REQUEST)
+                        true
+                    } catch (e: Exception) {
+                        filePicker = null
+                        false
+                    }
+                }
             }
             web = w
         }
@@ -268,6 +284,11 @@ class MainActivity : Activity() {
     @Deprecated("Deprecated in Java")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == FILE_REQUEST) {
+            filePicker?.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(resultCode, data))
+            filePicker = null
+            return
+        }
         if (requestCode != QR_REQUEST) return
         if (data?.getBooleanExtra(Intents.Scan.MISSING_CAMERA_PERMISSION, false) == true) {
             toast("Allow camera permission in app settings to scan QR codes, or paste the PC link")
@@ -405,5 +426,6 @@ class MainActivity : Activity() {
         const val ACTION_EXIT = "app.sofaremote.EXIT"
         private const val MIC_REQUEST = 2
         private const val QR_REQUEST = 3
+        private const val FILE_REQUEST = 4
     }
 }

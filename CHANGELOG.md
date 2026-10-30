@@ -9,6 +9,8 @@
 - Add a PC tab to the default layouts with the power buttons and window shortcuts (Alt+Tab, Ctrl+Tab,
   Ctrl+Alt+Tab, Task view, Show desktop, Close window…). Existing layouts keep theirs until reset.
 - Add a Custom theme: pick the background, button, text and accent colours under Settings › Look.
+- Add a background image, chosen under Settings › Look and stored on the PC next to layouts.json, so every
+  phone using that PC shows it. Needs the PC server and the Android app updated.
 
 ## 0.1.9 — 2026-10-28
 
