@@ -46,8 +46,15 @@ data class ButtonConfig(
 object Prefs {
     private fun sp(c: Context) = c.getSharedPreferences("sofa", Context.MODE_PRIVATE)
     fun link(c: Context): String? = sp(c).getString("link", null)
-    fun setLink(c: Context, link: String) = sp(c).edit().putString("link", link).apply()
-    fun clearLink(c: Context) = sp(c).edit().remove("link").apply()
+    fun setLink(c: Context, link: String) {
+        val edit = sp(c).edit().putString("link", link)
+        if (link != link(c)) edit.remove("wake") // another PC: its addresses are not the saved ones
+        edit.apply()
+    }
+    fun clearLink(c: Context) = sp(c).edit().remove("link").remove("wake").apply()
+    /** Wake-on-LAN addresses of the PC (JSON, see Wake), saved while it was awake. */
+    fun wake(c: Context): String? = sp(c).getString("wake", null)
+    fun setWake(c: Context, json: String) = sp(c).edit().putString("wake", json).apply()
     fun buttons(c: Context) = ButtonConfig.parse(sp(c).getString("buttons", null))
     fun setButtons(c: Context, cfg: ButtonConfig) = sp(c).edit().putString("buttons", cfg.toJson().toString()).apply()
 }

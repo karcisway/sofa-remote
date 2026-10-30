@@ -150,8 +150,9 @@ const ALIASES = { return: 'enter', escape: 'esc', control: 'ctrl', meta: 'win', 
   '`': 'backquote', ' ': 'space' };
 
 class Server {
-  constructor({ id, url, key, name }) {
+  constructor({ id, url, key, name, wake }) {
     Object.assign(this, { id, url, key, name });
+    this.wake = wake || [];   // Wake-on-LAN addresses from the server's hello: [{ mac, bcast }]
     this.config = null;
     this.latency = null;
     this.samples = [];
@@ -239,6 +240,12 @@ class Server {
       this.codes = Array.isArray(m.keys) ? null : m.keys;
       Object.keys(m.keys || {}).forEach(k => app.keyNames.add(k));
       this.rtcAvailable = !!m.rtc;
+      this.admin = m.admin || null;   // { supported, elevated, remember }: administrator rights (Windows)
+      if (Array.isArray(m.wake) && m.wake.length) {
+        this.wake = m.wake;
+        // The app keeps them for its offline screen (the PC page itself is gone by then)
+        if (this.id === 'self') window.SofaAndroid?.rememberPc?.(JSON.stringify(this.wake));
+      }
       app.updateKeyList();
       app.saveServers();
       app.renderTabs();
@@ -254,6 +261,8 @@ class Server {
       this.padOpened = false;   // the next press plugs the controller in (or offers the install again)
       this.padRetryAt = 0;
       app.status(this.label + ': ' + (m.ok ? 'gamepad driver installed' : m.error), !m.ok, m.ok);
+    } else if (m.t === 'notice') {
+      app.status(this.label + ': ' + m.text, true);
     } else if (m.t === 'focus') {
       app.onTextFocus(this, !!m.text);
     } else if (m.t === 'error') {
@@ -1463,7 +1472,7 @@ const app = {
   },
 
   saveServers() {
-    store.set('servers', this.servers.filter(s => s.id !== 'self').map(({ id, url, key, name }) => ({ id, url, key, name })));
+    store.set('servers', this.servers.filter(s => s.id !== 'self').map(({ id, url, key, name, wake }) => ({ id, url, key, name, wake })));
   },
   // Asks this PC whether `key` is valid; on success connects to it. Returns true, or the HTTP status.
   async trySelfKey(key) {
@@ -1676,6 +1685,28 @@ const app = {
     watchScroll(view);
     this.refreshStatus();
   },
+  // Lock-screen input needs administrator rights on the PC. The PC runs fine without them; this
+  // restarts it with a Windows permission prompt (answered at the PC) and can remember the choice.
+  adminCard(s) {
+    const a = s.admin;
+    const ask = async (op, doneText) => {
+      try {
+        if (op === 'enable') this.status('Approve the permission prompt on ' + s.label + '…', false, true);
+        await s.request({ t: 'admin', op }, 60000);
+        if (op === 'disable') { a.remember = false; this.renderView(); }
+        this.status(doneText, false, true);
+      } catch (e) { this.status(e.message, true); }
+    };
+    return h('div', { class: 'card admin' },
+      h('b', {}, s.label + ': lock screen'),
+      h('p', { class: 'note' }, a.elevated
+        ? 'Running as administrator, so the mouse and keyboard also work on the lock screen (sign-in) and on Windows permission prompts.'
+        : 'Running without administrator rights: the mouse and keyboard stop working while the PC is locked, and on Windows permission prompts. Everything else works. To use them, restart it as administrator: you approve a Windows prompt on the PC, so be there with it unlocked.'),
+      h('div', { class: 'row' },
+        a.elevated ? null : h('button', { class: 'small primary', onclick: () => ask('enable', 'Restarting as administrator…') }, 'Restart as administrator'),
+        a.remember ? h('button', { class: 'small', onclick: () => ask('disable', 'It won’t ask next time') }, 'Don’t ask at next start') : null),
+      a.remember ? h('p', { class: 'note' }, 'It asks for administrator rights every time it starts.') : null);
+  },
   renderSettings() {
     const input = h('input', { placeholder: 'http://192.168.0.x:8765/?k=…', autocomplete: 'off', autocapitalize: 'off' });
     return h('div', { class: 'settings' },
@@ -1684,9 +1715,12 @@ const app = {
       this.servers.map(s => h('div', { class: 'card row' },
         h('span', { class: 'dot' + (s.online ? ' on' : '') }),
         h('div', { class: 'grow' }, h('b', {}, s.label), h('small', { class: 'srv-stats', 'data-id': s.id }, this.serverInfo(s))),
+        !s.online && s.wake.length && window.SofaAndroid?.wake
+          ? h('button', { class: 'small', onclick: () => window.SofaAndroid.wake(JSON.stringify(s.wake)) }, 'Wake') : null,
         s.id === 'self' ? h('small', { style: 'color:var(--dim)' }, 'this PC') : h('button', { class: 'small', onclick: () => this.removeServer(s) }, 'Remove'))),
+      this.servers.filter(s => s.online && s.admin?.supported).map(s => this.adminCard(s)),
       h('div', { class: 'row' }, input, h('button', { class: 'small primary', onclick: () => this.addServer(input.value) }, 'Add')),
-      h('p', { class: 'note' }, 'Run sofa-remote on another PC and paste the link it prints, then pick it with the device button at the top. Any button can also target another PC or all of them (“Sends to” when editing). Latency: min/median/max round trip.'),
+      h('p', { class: 'note' }, 'Run sofa-remote on another PC and paste the link it prints, then pick it with the device button at the top. Any button can also target another PC or all of them (“Sends to” when editing). Latency: min/median/max round trip. Wake (Android app) sends a Wake-on-LAN signal to a PC that is off or asleep; it only works if that PC is set up for it (BIOS and network adapter settings).'),
       check('Open the keyboard when a text field is selected on the PC', h('input', { type: 'checkbox', checked: store.get('autoKb', true),
         onchange: e => { store.set('autoKb', e.target.checked); if (!e.target.checked) this.hideKeyBar(); } })),
       h('h2', {}, 'Look'),

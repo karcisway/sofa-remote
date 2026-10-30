@@ -50,6 +50,13 @@ whole link.
 - **Windows**: keys are sent as hardware scan codes, so games using DirectInput or raw input
   see them. A game running as administrator only gets input if sofa-remote also runs as
   administrator.
+  **Lock screen:** sofa-remote works without administrator rights, but then the mouse and
+  keyboard stop while the PC is locked (and on Windows permission prompts). When that happens the
+  phone says so. To type your PIN or password there, open ⚙ on the phone (PC unlocked) and tap
+  **Restart as administrator**, then approve the Windows prompt on the PC. The choice is
+  remembered: every start asks for the permission again, and refusing starts it without. **Don't
+  ask at next start** forgets it; `--no-elevate` skips the prompt for one run. It can't help
+  before anyone has signed in after a boot, since it runs in your session.
 - **Linux**: needs an X11 session (Xorg). On Wayland only XWayland apps receive keyboard and mouse.
 - **macOS**: allow the app under System Settings › Privacy & Security › Accessibility.
 - Allow the app through the firewall on private networks (TCP for the page, UDP for WebRTC).
@@ -123,6 +130,12 @@ plus what a web page can't do:
   media controls. That also stops the volume buttons and the media notification. Home leaves it
   running in the background.
 - When the PC can't be reached it says so, with Try again, Connect to another PC and Exit.
+- **Wake-on-LAN:** the PC tells the app its network addresses while it's awake. When it's off or
+  asleep, **Wake the PC** on the offline screen (or **Wake** next to a PC in ⚙) sends the wake
+  signal. This only works if the PC is set up for it: Wake-on-LAN enabled in the BIOS/UEFI and
+  in the network adapter's settings (on Windows also "Allow this device to wake the computer"),
+  usually over Ethernet, and the phone on the same network. Many PCs can't be woken from a full
+  shutdown or over Wi-Fi, only from sleep.
 
 First start: scan the PC's QR code from the app, or paste/share its link to the app. With
 "Keep working with the screen locked" on, it shows a media notification. Android sends the

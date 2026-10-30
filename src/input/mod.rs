@@ -118,6 +118,22 @@ fn run(backend: &mut impl Platform, cmd: Cmd) {
 
 static SENDER: OnceLock<Sender<Cmd>> = OnceLock::new();
 
+/// Called when the PC is locked and input can't reach the lock screen (Windows without administrator rights).
+#[cfg(windows)]
+static ON_LOCK_BLOCKED: OnceLock<Box<dyn Fn() + Send + Sync>> = OnceLock::new();
+
+#[cfg(windows)]
+pub fn on_lock_blocked(f: impl Fn() + Send + Sync + 'static) {
+    let _ = ON_LOCK_BLOCKED.set(Box::new(f));
+}
+
+#[cfg(windows)]
+fn lock_blocked() {
+    if let Some(f) = ON_LOCK_BLOCKED.get() {
+        f();
+    }
+}
+
 /// Start the input thread. Returns an error message if the OS refuses input injection.
 pub fn start() -> Result<(), String> {
     let (tx, rx) = channel::<Cmd>();

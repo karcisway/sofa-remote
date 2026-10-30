@@ -4,6 +4,7 @@
 //! printed link on the phone. The web app is embedded in the binary; layouts, the access key and
 //! layouts.json live next to the executable (or in --data DIR).
 
+mod admin;
 mod focus;
 mod gamepad;
 mod input;
@@ -12,9 +13,10 @@ mod power;
 #[cfg(feature = "webrtc")]
 mod rtc;
 mod session;
+mod wake;
 
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
-use axum::extract::{Path, Query, State};
+use axum::extract::{ConnectInfo, Path, Query, State};
 use axum::http::{HeaderMap, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
@@ -24,6 +26,7 @@ use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use session::Session;
 use std::collections::HashMap;
+use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
@@ -120,14 +123,14 @@ async fn api_self(State(app): State<Shared>, headers: HeaderMap, Query(q): Query
     ([(header::SET_COOKIE, cookie)], Json(json!({ "name": app.name, "key": app.token }))).into_response()
 }
 
-async fn ws_upgrade(State(app): State<Shared>, headers: HeaderMap, Query(q): Query<HashMap<String, String>>,
-                    ws: WebSocketUpgrade) -> Response {
+async fn ws_upgrade(State(app): State<Shared>, ConnectInfo(peer): ConnectInfo<SocketAddr>, headers: HeaderMap,
+                    Query(q): Query<HashMap<String, String>>, ws: WebSocketUpgrade) -> Response {
     if !authed(&app, &headers, &q) {
         return forbidden();
     }
     // c = the phone's own id, so it keeps its virtual gamepad when it reconnects
     let client = q.get("c").filter(|c| !c.is_empty() && c.len() <= 64).cloned();
-    ws.on_upgrade(move |socket| ws_conn(app, socket, client))
+    ws.on_upgrade(move |socket| ws_conn(app, socket, client, peer))
 }
 
 // ------------------------------------------------------------------ layouts config
@@ -241,7 +244,7 @@ impl Conn {
     }
 }
 
-async fn ws_conn(app: Shared, socket: WebSocket, client: Option<String>) {
+async fn ws_conn(app: Shared, socket: WebSocket, client: Option<String>, peer: SocketAddr) {
     let (mut sink, mut stream) = socket.split();
     let (tx, mut rx) = mpsc::unbounded_channel::<Message>();
     let writer = tokio::spawn(async move {
@@ -259,7 +262,9 @@ async fn ws_conn(app: Shared, socket: WebSocket, client: Option<String>) {
         #[cfg(feature = "webrtc")]
         peer: None,
     };
-    conn.send_json(json!({ "t": "hello", "name": app.name, "keys": keys::table(), "rtc": cfg!(feature = "webrtc") }));
+    conn.send_json(json!({ "t": "hello", "name": app.name, "keys": keys::table(), "rtc": cfg!(feature = "webrtc"),
+                           "wake": wake::targets(peer.ip()),
+                           "admin": { "supported": admin::SUPPORTED, "elevated": admin::elevated(), "remember": admin::wanted(&app.data_dir) } }));
     if app.text_focus.load(Ordering::Relaxed) {
         conn.send_json(json!({ "t": "focus", "text": true }));
     }
@@ -382,6 +387,25 @@ async fn handle_json(conn: &mut Conn, m: &Value) -> anyhow::Result<Option<Value>
             println!("Power: {name} requested from a phone");
             tokio::task::spawn_blocking(move || power::run(op)).await?.map_err(|e| anyhow::anyhow!(e))?;
         }
+        "admin" => match str_field(m, "op") {
+            "enable" => {
+                anyhow::ensure!(admin::SUPPORTED, "Administrator rights are only used on Windows");
+                anyhow::ensure!(!admin::elevated(), "Already running as administrator");
+                println!("Restarting as administrator (requested from a phone)");
+                admin::set_wanted(&app.data_dir, true);
+                // Windows shows the permission prompt on the PC and waits for it
+                if let Err(e) = tokio::task::spawn_blocking(admin::relaunch_elevated).await? {
+                    admin::set_wanted(&app.data_dir, false);
+                    anyhow::bail!("{e}: approve the prompt on the PC (not possible while it is locked)");
+                }
+                tokio::spawn(async {
+                    tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+                    std::process::exit(0);
+                });
+            }
+            "disable" => admin::set_wanted(&app.data_dir, false),
+            other => anyhow::bail!("unknown admin operation: {other}"),
+        },
         "open" => {
             let url = to_url(str_field(m, "url"));
             open::that_detached(&url)?;
@@ -492,11 +516,16 @@ struct Args {
     new_key: bool,
     no_focus: bool,
     install_driver: bool,
+    /// Started again by the "restart as administrator" step: the old one may still hold the port
+    restarted: bool,
+    /// Don't ask for administrator rights at start even if that was chosen before
+    no_elevate: bool,
     data: Option<PathBuf>,
 }
 
 fn parse_args() -> Args {
-    let mut a = Args { port: 8765, name: hostname(), new_key: false, no_focus: false, install_driver: false, data: None };
+    let mut a = Args { port: 8765, name: hostname(), new_key: false, no_focus: false, install_driver: false,
+                   restarted: false, no_elevate: false, data: None };
     let mut it = std::env::args().skip(1);
     while let Some(arg) = it.next() {
         match arg.as_str() {
@@ -506,6 +535,8 @@ fn parse_args() -> Args {
             "--new-key" => a.new_key = true,
             "--no-focus" => a.no_focus = true,
             "--install-driver" => a.install_driver = true,
+            admin::FLAG_RESTARTED => a.restarted = true,
+            admin::FLAG_NO_ELEVATE => a.no_elevate = true,
             "-V" | "--version" => {
                 println!("sofa-remote {}", env!("CARGO_PKG_VERSION"));
                 std::process::exit(0);
@@ -514,6 +545,7 @@ fn parse_args() -> Args {
                 println!("sofa-remote [--port 8765] [--name NAME] [--data DIR] [--new-key] [--no-focus] [--install-driver]");
                 println!("  --no-focus  don't watch for text fields on the PC (the phone keyboard won't open by itself)");
                 println!("  --install-driver  install the ViGEmBus gamepad driver (Windows) and exit");
+                println!("  --no-elevate  don't ask for administrator rights at start (Windows; see ⚙ on the phone)");
                 println!("  --version  print the version and exit");
                 std::process::exit(0);
             }
@@ -557,6 +589,15 @@ async fn main() -> anyhow::Result<()> {
         }
     };
 
+    // Chosen earlier on a phone: ask for administrator rights again. Refusing just goes on without.
+    if admin::SUPPORTED && admin::wanted(&data_dir) && !admin::elevated() && !args.restarted && !args.no_elevate {
+        println!("Asking for administrator rights (lock-screen input). Starting without them if refused.");
+        match admin::relaunch_elevated() {
+            Ok(()) => return Ok(()),
+            Err(e) => println!("Running without administrator rights: {e}"),
+        }
+    }
+
     if let Err(e) = input::start() {
         eprintln!("Input injection unavailable: {e}");
     }
@@ -565,6 +606,15 @@ async fn main() -> anyhow::Result<()> {
         token, name: args.name, data_dir, clients: Mutex::new(HashMap::new()),
         next_id: AtomicU64::new(1), text_focus: AtomicBool::new(false), config_lock: tokio::sync::Mutex::new(()),
     });
+    #[cfg(windows)]
+    {
+        let a = app.clone();
+        input::on_lock_blocked(move || {
+            let text = if admin::elevated() { "Can't type on the lock screen" }
+                else { "Can't type on the lock screen: not running as administrator (⚙ › This PC)" };
+            broadcast(&a, 0, &json!({ "t": "notice", "text": text }));
+        });
+    }
     if !args.no_focus {
         let a = app.clone();
         focus::watch(move |text| {
@@ -580,7 +630,17 @@ async fn main() -> anyhow::Result<()> {
         .route("/{file}", get(static_file))
         .with_state(app.clone());
 
-    let listener = tokio::net::TcpListener::bind(("0.0.0.0", args.port)).await?
+    // After a restart the old program may need a moment to let go of the port
+    let mut tries = if args.restarted { 40 } else { 1 };
+    let listener = loop {
+        match tokio::net::TcpListener::bind(("0.0.0.0", args.port)).await {
+            Err(_) if tries > 1 => {
+                tries -= 1;
+                tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+            }
+            result => break result?,
+        }
+    }
         .tap_io(|tcp| { let _ = tcp.set_nodelay(true); });
     let url = format!("http://{}:{}/?k={}", lan_ip(), args.port, app.token);
     println!("\nSofa Remote {} '{}' running. Open on your phone (same Wi-Fi),", env!("CARGO_PKG_VERSION"), app.name);
@@ -593,6 +653,6 @@ async fn main() -> anyhow::Result<()> {
         println!("Gamepads: the ViGEmBus driver isn't installed yet. It installs the first time a phone uses a");
         println!("gamepad (approve the prompt on this PC), or run: sofa-remote --install-driver");
     }
-    axum::serve(listener, router).await?;
+    axum::serve(listener, router.into_make_service_with_connect_info::<SocketAddr>()).await?;
     Ok(())
 }

@@ -6,11 +6,14 @@ import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.Typeface
 import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.text.InputType
 import android.view.Gravity
 import android.view.KeyEvent
@@ -29,6 +32,7 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import com.journeyapps.barcodescanner.ScanIntentResult
@@ -56,6 +60,12 @@ class MainActivity : Activity() {
     /** Language of a voice request waiting for the microphone permission. */
     private var pendingSpeech: String? = null
     private var disconnectDialog: AlertDialog? = null
+    /** The web page plus the "Connecting…" cover; kept so the WebView can be put back after the offline screen. */
+    private var frame: FrameLayout? = null
+    private var connecting: View? = null
+    private var currentLink: String? = null
+    private val handler = Handler(Looper.getMainLooper())
+    private val loadTimeout = Runnable { currentLink?.let { showOffline(it, "Timed out") } }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -95,6 +105,7 @@ class MainActivity : Activity() {
 
     override fun onDestroy() {
         disconnectDialog?.dismiss()
+        handler.removeCallbacks(loadTimeout)
         ButtonService.onExit = null
         super.onDestroy()
     }
@@ -170,6 +181,23 @@ class MainActivity : Activity() {
             w.settings.mediaPlaybackRequiresUserGesture = false
             w.addJavascriptInterface(Bridge(), "SofaAndroid")
             w.webViewClient = object : WebViewClient() {
+                override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
+                    // An unreachable address can take minutes to fail: give up sooner than the system does
+                    if (view !== web) return
+                    handler.removeCallbacks(loadTimeout)
+                    handler.postDelayed(loadTimeout, LOAD_TIMEOUT_MS)
+                }
+
+                // The PC answered and the page is showing; onPageFinished can come much later (or never),
+                // as it waits for everything on the page to finish loading
+                override fun onPageCommitVisible(view: WebView, url: String) = onPageFinished(view, url)
+
+                override fun onPageFinished(view: WebView, url: String) {
+                    if (view !== web) return
+                    handler.removeCallbacks(loadTimeout)
+                    connecting?.visibility = View.GONE
+                }
+
                 // The PC is off or unreachable: show what to do instead of a blank page
                 override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
                     if (request.isForMainFrame && view === web) showOffline(request.url.toString(), error.description.toString())
@@ -186,11 +214,46 @@ class MainActivity : Activity() {
             }
             web = w
         }
-        setContentView(view)
+        currentLink = link
+        val overlay = connecting ?: connectingView().also { connecting = it }
+        val root = frame ?: FrameLayout(this).also {
+            it.addView(view, FrameLayout.LayoutParams(-1, -1))
+            it.addView(overlay, FrameLayout.LayoutParams(-1, -1))
+            frame = it
+        }
+        overlay.findViewWithTag<TextView>("host").text = "Connecting to ${Uri.parse(link).host ?: "the PC"}…"
+        overlay.visibility = View.VISIBLE
+        setContentView(root)
         view.loadUrl(link)
     }
 
+    /** Shown over the web page until it has loaded, so a slow connection isn't an empty screen. */
+    private fun connectingView(): View {
+        val pad = (20 * resources.displayMetrics.density).toInt()
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(pad, pad, pad, pad)
+            setBackgroundColor(Color.parseColor("#0E0F13"))
+            isClickable = true // don't pass touches to the blank page below
+            addView(ProgressBar(context))
+            addView(TextView(context).apply {
+                tag = "host"
+                textSize = 18f
+                gravity = Gravity.CENTER
+                setTextColor(Color.parseColor("#E8E9EE"))
+                setPadding(0, pad, 0, pad)
+            })
+            addView(Button(context).apply {
+                text = "Cancel"
+                setOnClickListener { currentLink?.let { showOffline(it, "Cancelled") } }
+            })
+        }
+    }
+
     private fun showOffline(link: String, reason: String) {
+        handler.removeCallbacks(loadTimeout)
+        web?.stopLoading()
         val pad = (20 * resources.displayMetrics.density).toInt()
         val host = Uri.parse(link).host ?: "the PC"
         val button = { label: String, onClick: () -> Unit ->
@@ -213,6 +276,9 @@ class MainActivity : Activity() {
                 setPadding(0, pad / 2, 0, pad)
             })
             addView(button("Try again") { load(link) }, LinearLayout.LayoutParams(-1, -2))
+            if (Wake.hasTargets(Prefs.wake(this@MainActivity))) {
+                addView(button("Wake the PC") { wakePc(Prefs.wake(this@MainActivity)) }, LinearLayout.LayoutParams(-1, -2))
+            }
             addView(button("Disconnect") { confirmDisconnect() }, LinearLayout.LayoutParams(-1, -2))
             addView(button("Scan QR code") { scanQr() }, LinearLayout.LayoutParams(-1, -2))
             addView(button("Connect to another PC") { showSetup(null) }, LinearLayout.LayoutParams(-1, -2))
@@ -296,12 +362,16 @@ class MainActivity : Activity() {
         speech.destroy()
         held.clear()
         hideFullscreen()
+        handler.removeCallbacks(loadTimeout)
         web?.let { view ->
             view.stopLoading()
             (view.parent as? ViewGroup)?.removeView(view)
             view.destroy()
         }
         web = null
+        frame = null
+        connecting = null
+        currentLink = null
         showSetup(null)
     }
 
@@ -349,6 +419,17 @@ class MainActivity : Activity() {
         setContentView(box, ViewGroup.LayoutParams(-1, -1))
     }
 
+    /** Sends Wake-on-LAN packets. The PC only wakes if Wake-on-LAN is turned on in its BIOS and network adapter. */
+    private fun wakePc(json: String?) {
+        Thread {
+            val sent = Wake.send(json)
+            runOnUiThread {
+                toast(if (sent == 0) "Couldn't send the wake signal: is this phone on Wi-Fi?"
+                else "Wake signal sent. It only works if the PC is set up for Wake-on-LAN. Give it up to a minute, then try again.")
+            }
+        }.start()
+    }
+
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
 
     /** window.SofaAndroid in the web app. Called on a WebView thread. */
@@ -378,6 +459,13 @@ class MainActivity : Activity() {
         @JavascriptInterface
         fun stopSpeech() = runOnUiThread { speech.stop() }
 
+        /** The PC's Wake-on-LAN addresses, for the offline screen (see Wake). */
+        @JavascriptInterface
+        fun rememberPc(wakeJson: String) = Prefs.setWake(this@MainActivity, wakeJson)
+
+        @JavascriptInterface
+        fun wake(wakeJson: String) = runOnUiThread { wakePc(wakeJson) }
+
         @JavascriptInterface
         fun exit() = runOnUiThread { exitApp() }
 
@@ -405,5 +493,6 @@ class MainActivity : Activity() {
         const val ACTION_EXIT = "app.sofaremote.EXIT"
         private const val MIC_REQUEST = 2
         private const val QR_REQUEST = 3
+        private const val LOAD_TIMEOUT_MS = 10_000L
     }
 }

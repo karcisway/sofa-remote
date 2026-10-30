@@ -173,8 +173,8 @@ dialog h3 { margin:0 0 12px; font-size:17px; }
 dialog form { display:flex; flex-direction:column; gap:10px; }
 dialog label, dialog .field { display:flex; flex-direction:column; gap:4px; font-size:13px; color:var(--dim); }
 dialog [hidden] { display:none !important; }
-dialog label.check { flex-direction:row; align-items:center; gap:10px; font-size:15px; color:var(--fg); }
-dialog label.check input { width:22px; height:22px; }
+label.check { display:flex; flex-direction:row; align-items:center; gap:10px; font-size:15px; color:var(--fg); }
+label.check input { width:22px; height:22px; flex:none; padding:0; accent-color:var(--acc); }
 dialog input, dialog select, dialog textarea { background:var(--bg); padding:10px 12px; }
 dialog textarea.code { font:13px ui-monospace,Consolas,monospace; min-height:120px; }
 dialog details summary { color:var(--dim); font-size:14px; padding:4px 0; }
