@@ -8,6 +8,7 @@ mod focus;
 mod gamepad;
 mod input;
 mod keys;
+mod power;
 #[cfg(feature = "webrtc")]
 mod rtc;
 mod session;
@@ -374,6 +375,12 @@ async fn handle_json(conn: &mut Conn, m: &Value) -> anyhow::Result<Option<Value>
                 tokio::time::sleep(std::time::Duration::from_millis(50)).await;
                 send(Cmd::Combo(vec![keys::VK_LCONTROL, keys::VK_V]));
             }
+        }
+        "power" => {
+            let name = str_field(m, "op");
+            let op = power::Op::from_name(name).ok_or_else(|| anyhow::anyhow!("unknown power action: {name}"))?;
+            println!("Power: {name} requested from a phone");
+            tokio::task::spawn_blocking(move || power::run(op)).await?.map_err(|e| anyhow::anyhow!(e))?;
         }
         "open" => {
             let url = to_url(str_field(m, "url"));

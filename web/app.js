@@ -374,6 +374,14 @@ async function run(action, srv, phase = 'down') {
   else if (action.scroll) send({ t: 'mouse', kind: 'scroll', dy: -Math.round(action.scroll * 120) });
   else if (action.move) send({ t: 'mouse', kind: 'move', dx: action.move[0] | 0, dy: action.move[1] | 0 });
   else if (action.open) send({ t: 'open', url: action.open });
+  else if (action.power) {
+    const what = POWER[action.power]?.text || action.power;
+    for (const s of targetsOf(action, srv)) {
+      s.request({ t: 'power', op: action.power })
+        .then(() => app.status(`${what}: ${s.label}`, false, true))
+        .catch(e => app.status(`${s.label}: ${e.message}`, true));
+    }
+  }
   else if (action.layout) app.showByName(action.layout);
   else if (action.seq) {
     for (const step of action.seq) {
@@ -382,6 +390,17 @@ async function run(action, srv, phase = 'down') {
     }
   }
 }
+
+// Power actions (src/power.rs).
+const POWER = {
+  shutdown: { text: 'Shut down' },
+  restart: { text: 'Restart' },
+  hibernate: { text: 'Hibernate' },
+  signout: { text: 'Sign out' },
+  sleep: { text: 'Sleep' },
+  lock: { text: 'Lock' },
+  screenoff: { text: 'Screen off' },
+};
 
 // Every pressed control registers its release, so everything can be let go at once
 const activeReleases = new Set();
@@ -913,6 +932,7 @@ const ACTION_KINDS = [
   ['pad', 'Gamepad button (virtual controller)', 'a, b, x, y, lb, rb, lt, rt, start, back, guide, ls, rs, up, down, left, right'],
   ['scroll', 'Scroll (notches, − = up)', '3   or   -3'],
   ['open', 'Open URL / search on PC', 'https://youtube.com'],
+  ['power', 'Power (shut down, sleep…)', 'shutdown, restart, sleep, hibernate, lock, signout, screenoff'],
   ['layout', 'Switch to tab', 'Gamepad'],
   ['custom', 'Custom JSON (macros, seq…)', '{"seq": [{"keys": ["ctrl","l"]}, {"wait": 100}, {"text": "netflix.com\\n"}]}'],
 ];
@@ -923,7 +943,7 @@ function actionToFields(a) {
   const simple = Object.keys(a).filter(k => k !== 'server');
   if (simple.length === 1) {
     const k = simple[0], v = a[k];
-    if (['key', 'text', 'mouse', 'hold_mouse', 'open', 'layout'].includes(k)) return [k, String(v).replace(/\n/g, '\\n')];
+    if (['key', 'text', 'mouse', 'hold_mouse', 'open', 'power', 'layout'].includes(k)) return [k, String(v).replace(/\n/g, '\\n')];
     if (k === 'keys' || k === 'hold' || k === 'pad') return [k, asList(v).join('+')];
     if (k === 'scroll') return [k, String(v)];
   }
