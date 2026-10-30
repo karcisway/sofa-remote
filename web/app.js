@@ -27,68 +27,82 @@ const asList = v => (Array.isArray(v) ? v : [v]);
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const rid = () => Math.random().toString(36).slice(2, 9);
 
-// Themes (colour sets in app.css, [data-theme]); the choice is stored on this phone.
-const THEMES = [
-  { id: 'night', name: 'Night', dark: true, colors: ['#0e0f13', '#1a1c23', '#4f8cff'] },
-  { id: 'light', name: 'Light', colors: ['#f2f3f7', '#ffffff', '#3d7bff'] },
-  { id: 'bubblegum', name: 'Bubblegum', colors: ['#fff0f6', '#ffd9ea', '#ff4f9a'] },
-  { id: 'grape', name: 'Grape', dark: true, colors: ['#15101d', '#322447', '#b57bff'] },
-  { id: 'mint', name: 'Mint', colors: ['#ecf9f3', '#d2f1e3', '#14a874'] },
+// ------------------------------------------------------------------ look (theme)
+
+// A look is a full set of values: colours, corner radius, spacing, font, background pattern and shadow.
+// The presets are only starting points: picking one in the theme editor loads its values, which can then
+// be changed further. The look is stored on this phone; everything else about it is derived (see lookVars).
+const LOOK_PRESETS = [
+  { id: 'night', name: 'Night', v: { bg: '#0e0f13', card: '#1a1c23', card2: '#262933', fg: '#e8e9ee', dim: '#8a8d99', acc: '#4f8cff', onAcc: '#ffffff',
+    dangerBg: '#4a1d22', dangerFg: '#ffb3b3', radius: 16, gap: 10, font: 'system', pattern: 'none', shadow: 'none' } },
+  { id: 'light', name: 'Light', v: { bg: '#f2f3f7', card: '#ffffff', card2: '#e4e6ee', fg: '#1b1d24', dim: '#697084', acc: '#3d7bff', onAcc: '#ffffff',
+    dangerBg: '#fde3e3', dangerFg: '#b42318', radius: 16, gap: 10, font: 'system', pattern: 'none', shadow: 'soft' } },
+  { id: 'bubblegum', name: 'Bubblegum', v: { bg: '#fff0f6', card: '#ffffff', card2: '#ffd9ea', fg: '#6b2150', dim: '#b46d95', acc: '#ff4f9a', onAcc: '#ffffff',
+    dangerBg: '#ffe1e8', dangerFg: '#c81e4b', radius: 24, gap: 10, font: 'rounded', pattern: 'hearts', shadow: 'hard' } },
+  { id: 'grape', name: 'Grape', v: { bg: '#15101d', card: '#221933', card2: '#322447', fg: '#f1e9ff', dim: '#a596c2', acc: '#b57bff', onAcc: '#ffffff',
+    dangerBg: '#4a1d22', dangerFg: '#ffb3b3', radius: 20, gap: 10, font: 'system', pattern: 'none', shadow: 'none' } },
+  { id: 'mint', name: 'Mint', v: { bg: '#ecf9f3', card: '#ffffff', card2: '#d2f1e3', fg: '#134e3a', dim: '#5f8f7d', acc: '#14a874', onAcc: '#ffffff',
+    dangerBg: '#fde4e4', dangerFg: '#b42318', radius: 20, gap: 10, font: 'system', pattern: 'none', shadow: 'hard' } },
 ];
-// The "Custom" theme: four colours picked under Settings › Look; the rest is worked out from them.
-const CUSTOM_DEFAULT = { bg: '#101820', card: '#1d2a36', fg: '#eaf2f8', acc: '#2ec4b6' };
-const customColors = () => ({ ...CUSTOM_DEFAULT, ...store.get('customTheme', {}) });
+const LOOK_DEFAULT = LOOK_PRESETS[0].v;
+const LOOK_FONTS = {
+  system: ['System', 'system-ui,-apple-system,sans-serif'],
+  rounded: ['Rounded', 'ui-rounded,"SF Pro Rounded","Nunito","Varela Round","Quicksand",system-ui,sans-serif'],
+  serif: ['Serif', 'Georgia,"Times New Roman",serif'],
+  mono: ['Monospace', 'ui-monospace,Consolas,monospace'],
+};
+const LOOK_PATTERNS = { none: 'None', hearts: 'Hearts', dots: 'Dots' };
+const LOOK_SHADOWS = { none: 'None', soft: 'Soft', hard: 'Flat 3D' };
+const LOOK_COLORS = [['bg', 'Background'], ['card', 'Buttons and panels'], ['card2', 'Raised and borders'], ['fg', 'Text'],
+  ['dim', 'Dimmed text'], ['acc', 'Accent'], ['onAcc', 'Text on accent'], ['dangerBg', 'Danger background'], ['dangerFg', 'Danger text']];
+
 const hexRgb = hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
 const mixHex = (a, b, t) => {
   const [x, y] = [hexRgb(a), hexRgb(b)];
   return '#' + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, '0')).join('');
 };
 const luminance = hex => { const [r, g, b] = hexRgb(hex); return (0.299 * r + 0.587 * g + 0.114 * b) / 255; };
-function customVars({ bg, card, fg, acc }) {
-  const dark = luminance(bg) < 0.45, onAcc = luminance(acc) > 0.55 ? '#111111' : '#ffffff';
-  const pick = (d, l) => (dark ? d : l);
+
+// The CSS variables for a look. Light or dark follows the background; the success / warning / error
+// colours and the shade behind dialogs are picked to match.
+function lookVars(v) {
+  const dark = luminance(v.bg) < 0.45, pick = (d, l) => (dark ? d : l);
+  const svg = body => `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' ${body}%3E%3C/svg%3E")`;
+  const tint = '%23' + v.card2.slice(1);
+  const patterns = {
+    none: 'none',
+    hearts: svg(`width='56' height='56'%3E%3Cpath d='M28 36s-9-5.6-9-11a4.8 4.8 0 0 1 9-2.4A4.8 4.8 0 0 1 37 25c0 5.4-9 11-9 11z' fill='${tint}' fill-opacity='.8'/`),
+    dots: svg(`width='24' height='24'%3E%3Ccircle cx='12' cy='12' r='1.6' fill='${tint}'/`),
+  };
+  const shadows = { none: 'none', soft: '0 1px 3px rgba(20,25,40,.12)', hard: `0 4px 0 ${mixHex(v.card2, '#000000', 0.06)}` };
   return {
-    '--bg': bg, '--card': card, '--card2': mixHex(card, fg, 0.14), '--fg': fg, '--dim': mixHex(fg, bg, 0.5),
-    '--acc': acc, '--acc2': mixHex(acc, '#000000', 0.15), '--on-acc': onAcc, '--on-acc-dim': mixHex(onAcc, acc, 0.25),
+    '--bg': v.bg, '--card': v.card, '--card2': v.card2, '--fg': v.fg, '--dim': v.dim,
+    '--acc': v.acc, '--acc2': mixHex(v.acc, '#000000', 0.15), '--on-acc': v.onAcc, '--on-acc-dim': mixHex(v.onAcc, v.acc, 0.25),
     '--ok': pick('#5fd17a', '#1f9d55'), '--err': pick('#ff6b6b', '#d93a40'), '--warn': pick('#f5c451', '#b7791f'),
     '--on-bg': pick('#1f3b26', '#d9f4e3'), '--on-fg': pick('#8be39c', '#17713e'),
-    '--danger-bg': pick('#4a1d22', '#fde3e3'), '--danger-fg': pick('#ffb3b3', '#b42318'),
+    '--danger-bg': v.dangerBg, '--danger-fg': v.dangerFg,
     '--shade': pick('rgba(20,22,28,.85)', 'rgba(255,255,255,.9)'), '--backdrop': pick('rgba(0,0,0,.55)', 'rgba(30,32,40,.35)'),
-    '--shadow': pick('none', '0 1px 3px rgba(20,25,40,.12)'), 'color-scheme': pick('dark', 'light'),
+    '--shadow': shadows[v.shadow] ?? 'none', '--radius': v.radius + 'px', '--gap': v.gap + 'px',
+    '--font': (LOOK_FONTS[v.font] || LOOK_FONTS.system)[1], '--pattern': patterns[v.pattern] ?? 'none',
+    'color-scheme': pick('dark', 'light'),
   };
 }
-// Every theme, the Custom one last (its tile shows the colours picked now)
-function themeList() {
-  const c = customColors();
-  return [...THEMES, { id: 'custom', name: 'Custom', dark: luminance(c.bg) < 0.45, text: c.fg, colors: [c.bg, c.card, c.acc] }];
+// What is saved, or (for a phone from before the theme editor) the old theme it had picked
+function loadLook() {
+  const saved = store.get('look', null);
+  if (saved) return { ...LOOK_DEFAULT, ...saved };
+  const id = store.get('theme', 'night');
+  if (id === 'custom') return { ...LOOK_DEFAULT, ...store.get('customTheme', {}) };
+  return { ...(LOOK_PRESETS.find(p => p.id === id) || LOOK_PRESETS[0]).v };
 }
-let customKeys = [];
-function applyTheme(id) {
-  const theme = themeList().find(t => t.id === id) || THEMES[0];
+const sameLook = (a, b) => Object.keys(LOOK_DEFAULT).every(k => a[k] === b[k]);
+const lookName = v => LOOK_PRESETS.find(p => sameLook(p.v, v))?.name || 'Custom';
+function applyLook(v) {
   const root = document.documentElement;
-  customKeys.forEach(k => root.style.removeProperty(k));
-  customKeys = [];
-  if (theme.id === 'custom') {
-    for (const [k, v] of Object.entries(customVars(customColors()))) { root.style.setProperty(k, v); customKeys.push(k); }
-  }
-  if (theme.id === 'night') delete root.dataset.theme;
-  else root.dataset.theme = theme.id;
-  document.querySelector('meta[name=theme-color]')?.setAttribute('content', theme.colors[0]);
-  return theme.id;
+  for (const [k, val] of Object.entries(lookVars(v))) root.style.setProperty(k, val);
+  document.querySelector('meta[name=theme-color]')?.setAttribute('content', v.bg);
 }
-applyTheme(store.get('theme', 'night'));
-
-const tileStyle = t => `--t-bg:${t.colors[0]};--t-fg:${t.text || (t.dark ? '#e8e9ee' : '#1b1d24')}`;
-// Refresh the theme tiles in place (the colour pickers must stay open while one is dragged)
-function syncTiles() {
-  const now = store.get('theme', 'night');
-  for (const el of document.querySelectorAll('.theme')) {
-    const t = themeList().find(x => x.id === el.dataset.id);
-    el.classList.toggle('on', now === t.id);
-    el.style.cssText = tileStyle(t);
-    el.querySelectorAll('i').forEach((i, n) => i.style.setProperty('--c', t.colors[n]));
-  }
-}
+applyLook(loadLook());
 
 // Icons: "lucide:play" is a Lucide icon from icons.svg (https://lucide.dev, ~1900 of them);
 // anything else (emoji, "F5", "Esc") is shown as text.
@@ -1096,14 +1110,14 @@ function toHex(css) {
 }
 // Colour field for the editor: the system colour picker plus the text (any CSS colour), and a reset.
 // `fallback` is the colour shown while the text is empty.
-function colorPicker(input, fallback, onChange = () => {}) {
+function colorPicker(input, fallback, onChange = () => {}, withReset = true) {
   const picker = h('input', { type: 'color', 'aria-label': 'Pick a colour', class: 'color-swatch' });
   const sync = () => (picker.value = toHex(input.value) || toHex(fallback) || '#000000');
   picker.addEventListener('input', () => { input.value = picker.value; onChange(); });
   input.addEventListener('input', () => { sync(); onChange(); });
   sync();
   return h('div', { class: 'color-field' }, picker, input,
-    h('button', { type: 'button', class: 'small', onclick: () => { input.value = ''; sync(); onChange(); } }, 'Reset'));
+    withReset ? h('button', { type: 'button', class: 'small', onclick: () => { input.value = ''; sync(); onChange(); } }, 'Reset') : null);
 }
 
 // The button styles drawn as real buttons (with the icon and label typed so far), one to tap.
@@ -1229,6 +1243,78 @@ function openWidgetSheet(layout, w, isNew = false) {
     sheetBtn('Cancel', closeSheet),
     sheetBtn(isNew ? 'Add' : 'OK', apply, 'primary'),
   ]);
+}
+
+// Theme editor: a dialog with a live preview pinned on top, so colours are never chosen blind.
+// Nothing changes on the page until Apply; picking a preset loads its values to tweak further.
+function openThemeSheet(onDone = () => {}) {
+  let draft = { ...loadLook() };
+  const dlg = $('#theme');
+  const syncers = [];
+  let syncing = false;
+
+  const preview = h('div', { class: 'theme-preview', 'aria-hidden': 'true', inert: true },
+    h('div', { class: 'pv-tabs' }, h('span', { class: 'pv-tab on' }, 'Remote'), h('span', { class: 'pv-tab' }, 'Keyboard'), h('span', { class: 'pv-tab' }, 'PC')),
+    h('div', { class: 'pv-row' }, ...[['', 'play', 'Default'], ['accent', 'volume-2', 'Accent'], ['dark', 'moon', 'Dark'], ['danger', 'power', 'Danger']]
+      .map(([style, icon, name]) => h('div', { class: 'btn ' + style }, iconEl('lucide:' + icon), h('small', {}, name)))),
+    h('div', { class: 'card row' }, h('span', { class: 'dot on' }),
+      h('div', { class: 'grow' }, h('b', {}, 'Living room PC'), h('small', {}, 'http://192.168.0.2:8765 · online')),
+      h('small', { class: 'pv-dim' }, 'Dimmed')),
+    h('div', { class: 'pv-row' }, h('input', { placeholder: 'Text field', readonly: true, tabindex: -1 }),
+      check('Option', h('input', { type: 'checkbox', checked: true, tabindex: -1 }))));
+
+  const presetButtons = LOOK_PRESETS.map(p => h('button', { type: 'button', class: 'theme', style: `--t-bg:${p.v.bg};--t-fg:${p.v.fg}`,
+    onclick: () => { draft = { ...p.v }; syncAll(); } },
+    h('span', { class: 'swatch' }, [p.v.bg, p.v.card, p.v.acc].map(c => h('i', { style: `--c:${c}` }))), p.name));
+
+  const paint = () => {
+    for (const [k, v] of Object.entries(lookVars(draft))) preview.style.setProperty(k, v);
+    presetButtons.forEach((b, i) => b.classList.toggle('on', sameLook(draft, LOOK_PRESETS[i].v)));
+  };
+  const syncAll = () => {
+    syncing = true;
+    syncers.forEach(f => f());
+    syncing = false;
+    paint();
+  };
+
+  const colorField = ([key, name]) => {
+    const text = h('input', { value: draft[key], autocomplete: 'off', autocapitalize: 'off', 'aria-label': name });
+    syncers.push(() => { text.value = draft[key]; text.dispatchEvent(new Event('input')); });
+    const picker = colorPicker(text, LOOK_DEFAULT[key], () => {
+      if (syncing) return;
+      const hex = toHex(text.value);
+      if (hex) { draft[key] = hex; paint(); }
+    }, false);
+    return h('div', { class: 'field' }, name, picker);
+  };
+  const slider = (key, name, min, max, unit) => {
+    const input = h('input', { type: 'range', min, max, value: draft[key] });
+    const out = h('output', {}, draft[key] + unit);
+    input.addEventListener('input', () => { draft[key] = +input.value; out.textContent = input.value + unit; paint(); });
+    syncers.push(() => { input.value = draft[key]; out.textContent = draft[key] + unit; });
+    return h('label', { class: 'slider' }, h('span', {}, name, out), input);
+  };
+  const choice = (key, name, options) => {
+    const sel = h('select', {}, Object.entries(options).map(([v, n]) => h('option', { value: v }, Array.isArray(n) ? n[0] : n)));
+    sel.addEventListener('change', () => { draft[key] = sel.value; paint(); });
+    syncers.push(() => { sel.value = draft[key]; });
+    return field(name, sel);
+  };
+
+  dlg.replaceChildren(
+    preview,
+    h('div', { class: 'theme-body' },
+      h('h4', {}, 'Start from'), h('div', { class: 'themes' }, presetButtons),
+      h('h4', {}, 'Colours'), h('div', { class: 'color-grid' }, LOOK_COLORS.map(colorField)),
+      h('h4', {}, 'Shape and spacing'), slider('radius', 'Corner roundness', 0, 36, ' px'), slider('gap', 'Space between buttons', 4, 24, ' px'),
+      h('h4', {}, 'Style'), h('div', { class: 'pair' }, choice('font', 'Font', LOOK_FONTS), choice('shadow', 'Button shadow', LOOK_SHADOWS)),
+      choice('pattern', 'Background pattern', LOOK_PATTERNS)),
+    h('div', { class: 'sheet-buttons theme-foot' },
+      sheetBtn('Cancel', () => dlg.close()),
+      sheetBtn('Apply', () => { store.set('look', draft); applyLook(draft); dlg.close(); onDone(); }, 'primary')));
+  syncAll();
+  dlg.showModal();
 }
 
 function openLayoutSheet(layout) {
@@ -1604,12 +1690,7 @@ const app = {
       check('Open the keyboard when a text field is selected on the PC', h('input', { type: 'checkbox', checked: store.get('autoKb', true),
         onchange: e => { store.set('autoKb', e.target.checked); if (!e.target.checked) this.hideKeyBar(); } })),
       h('h2', {}, 'Look'),
-      h('div', { class: 'themes' }, themeList().map(t => h('button', {
-        class: 'theme' + ((store.get('theme', 'night') === t.id) ? ' on' : ''), 'data-id': t.id,
-        style: tileStyle(t),
-        onclick: () => { store.set('theme', applyTheme(t.id)); syncTiles(); },
-      }, h('span', { class: 'swatch' }, t.colors.map(c => h('i', { style: `--c:${c}` }))), t.name))),
-      this.customLookSettings(),
+      this.themeButton(),
       this.phoneButtonSettings(),
       h('h2', {}, 'Latency'),
       check('Show latency on screen', h('input', { type: 'checkbox', checked: store.get('showPing', false),
@@ -1655,23 +1736,11 @@ const app = {
 
   // Only inside the Android app, which exposes window.SofaAndroid: what the phone's hardware
   // buttons do (they work with the screen locked too, through a media notification).
-  // Four colour pickers for the Custom theme; picking one switches to it, live.
-  customLookSettings() {
-    const cur = customColors();
-    const rows = [['bg', 'Background'], ['card', 'Buttons and panels'], ['fg', 'Text'], ['acc', 'Accent']].map(([k, name]) => {
-      const text = h('input', { value: cur[k], placeholder: '#rrggbb', autocomplete: 'off', autocapitalize: 'off' });
-      const change = () => {
-        cur[k] = toHex(text.value) || CUSTOM_DEFAULT[k];
-        store.set('customTheme', cur);
-        store.set('theme', applyTheme('custom'));
-        syncTiles();
-      };
-      return h('div', { class: 'field' }, name, colorPicker(text, CUSTOM_DEFAULT[k], change));
-    });
-    return h('details', { class: 'custom-look', open: true },
-      h('summary', {}, 'Custom colours'),
-      h('div', { class: 'custom-fields' }, rows,
-        h('button', { class: 'small', onclick: () => { store.set('customTheme', {}); store.set('theme', applyTheme('custom')); this.render(); } }, 'Reset colours')));
+  themeButton() {
+    const look = loadLook();
+    return h('button', { class: 'wide look-button', onclick: () => openThemeSheet(() => this.render()) },
+      h('span', { class: 'swatch' }, [look.bg, look.card, look.acc].map(c => h('i', { style: `--c:${c}` }))),
+      h('span', {}, h('b', {}, lookName(look) + ' theme'), h('small', {}, 'Change colours, corners, font…')));
   },
 
   phoneButtonSettings() {

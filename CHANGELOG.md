@@ -8,7 +8,8 @@
   button and the action runs when it is full. The tint colour can be changed per button. Shut down, restart, hibernate and sign out use it by default.
 - Add a PC tab to the default layouts with the power buttons and window shortcuts (Alt+Tab, Ctrl+Tab,
   Ctrl+Alt+Tab, Task view, Show desktop, Close window…). Existing layouts keep theirs until reset.
-- Add a Custom theme: pick the background, button, text and accent colours under Settings › Look.
+- Add a theme editor (Settings › Look) with a live preview pinned on top. Picking a theme loads its values, which can then be
+  changed: all colours, corner roundness, spacing, font, button shadow and background pattern.
 
 ## 0.1.9 — 2026-10-28
 

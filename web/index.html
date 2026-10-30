@@ -11,7 +11,7 @@
 <link rel="icon" type="image/png" href="icon.png">
 <link rel="apple-touch-icon" href="icon.png">
 <link rel="stylesheet" href="app.css">
-<script>/* theme before first paint (see THEMES in app.js) */ try { const t = JSON.parse(localStorage.getItem('theme')); if (t && t !== 'night') document.documentElement.dataset.theme = t; } catch {}</script>
+<script>/* background and text colour before first paint (the whole look is applied by app.js) */ try { const l = JSON.parse(localStorage.getItem('look')); if (l) { const s = document.documentElement.style; s.setProperty('--bg', l.bg); s.setProperty('--fg', l.fg); } } catch {}</script>
 </head>
 <body>
 <header id="top">
@@ -33,6 +33,7 @@
 <div id="keybar" hidden></div>
 <button id="exit-immersive" class="icon" hidden aria-label="Exit fullscreen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-minimize"/></svg></button>
 <dialog id="sheet"></dialog>
+<dialog id="theme"></dialog>
 <datalist id="keylist"></datalist>
 <script src="app.js"></script>
 </body>
