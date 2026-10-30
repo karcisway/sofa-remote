@@ -42,10 +42,6 @@ sofa-remote [--port 8765] [--name "Living room"] [--data DIR] [--new-key] [--no-
 
 **Themes:** ⚙ › Look: Night, Light, Bubblegum (pink), Grape and Mint, or Custom: pick the background, button, text and accent colours yourself. Each phone keeps its own.
 
-**Background image:** ⚙ › Look › Choose background image. The picture (shrunk to 1920 px) is saved on the PC as
-`background.jpg` next to `layouts.json`, so every phone using that PC shows it; the slider dims it. The Android app
-needs this update to open its file picker.
-
 **Wrong key:** when the PC made a new key, the phone asks for it. Type the key or paste the
 whole link.
 

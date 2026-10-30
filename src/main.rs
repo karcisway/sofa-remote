@@ -14,11 +14,10 @@ mod rtc;
 mod session;
 
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
-use axum::body::Bytes;
-use axum::extract::{DefaultBodyLimit, Path, Query, State};
+use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, StatusCode, header};
 use axum::response::{IntoResponse, Response};
-use axum::routing::{get, put};
+use axum::routing::get;
 use axum::serve::ListenerExt;
 use axum::{Json, Router};
 use futures_util::{SinkExt, StreamExt};
@@ -129,88 +128,6 @@ async fn ws_upgrade(State(app): State<Shared>, headers: HeaderMap, Query(q): Que
     // c = the phone's own id, so it keeps its virtual gamepad when it reconnects
     let client = q.get("c").filter(|c| !c.is_empty() && c.len() <= 64).cloned();
     ws.on_upgrade(move |socket| ws_conn(app, socket, client))
-}
-
-// ------------------------------------------------------------------ background image
-
-/// The phone's background image lives next to layouts.json as background.<ext>, so every phone
-/// using this PC shows it. The phone shrinks the picture before sending it; this is the ceiling.
-const BACKGROUND_MAX: usize = 12 << 20;
-const BACKGROUND_TYPES: &[(&str, &str)] =
-    &[("png", "image/png"), ("jpg", "image/jpeg"), ("webp", "image/webp"), ("gif", "image/gif")];
-
-/// File extension of a PNG, JPEG, WebP or GIF picture, judged by its first bytes.
-fn image_ext(b: &[u8]) -> Option<&'static str> {
-    if b.starts_with(&[0x89, b'P', b'N', b'G']) {
-        Some("png")
-    } else if b.starts_with(&[0xFF, 0xD8, 0xFF]) {
-        Some("jpg")
-    } else if b.len() > 12 && &b[..4] == b"RIFF" && &b[8..12] == b"WEBP" {
-        Some("webp")
-    } else if b.starts_with(b"GIF8") {
-        Some("gif")
-    } else {
-        None
-    }
-}
-
-/// The stored image: its path, content type and a version (modified time in ms) for cache busting.
-fn background(app: &App) -> Option<(PathBuf, &'static str, u64)> {
-    BACKGROUND_TYPES.iter().find_map(|(ext, mime)| {
-        let path = app.data_dir.join(format!("background.{ext}"));
-        let modified = std::fs::metadata(&path).ok()?.modified().ok()?;
-        let version = modified.duration_since(std::time::UNIX_EPOCH).ok()?.as_millis() as u64;
-        Some((path, *mime, version))
-    })
-}
-
-fn remove_background(app: &App) {
-    for (ext, _) in BACKGROUND_TYPES {
-        let _ = std::fs::remove_file(app.data_dir.join(format!("background.{ext}")));
-    }
-}
-
-async fn get_background(State(app): State<Shared>, headers: HeaderMap, Query(q): Query<HashMap<String, String>>) -> Response {
-    if !authed(&app, &headers, &q) {
-        return forbidden();
-    }
-    let Some((path, mime, _)) = background(&app) else { return StatusCode::NOT_FOUND.into_response() };
-    match std::fs::read(path) {
-        // the page asks for it with ?v=<version>, so a changed picture is a new URL
-        Ok(bytes) => ([(header::CONTENT_TYPE, mime), (header::CACHE_CONTROL, "private, max-age=31536000")], bytes).into_response(),
-        Err(_) => StatusCode::NOT_FOUND.into_response(),
-    }
-}
-
-async fn put_background(State(app): State<Shared>, headers: HeaderMap, Query(q): Query<HashMap<String, String>>,
-                        body: Bytes) -> Response {
-    if !authed(&app, &headers, &q) {
-        return (StatusCode::FORBIDDEN, Json(json!({ "error": "wrong key" }))).into_response();
-    }
-    let Some(ext) = image_ext(&body) else {
-        return (StatusCode::UNSUPPORTED_MEDIA_TYPE, Json(json!({ "error": "That isn't a PNG, JPEG, WebP or GIF picture" }))).into_response();
-    };
-    let saved = (|| -> std::io::Result<()> {
-        let tmp = app.data_dir.join("background.tmp");
-        std::fs::write(&tmp, &body)?;
-        remove_background(&app);
-        std::fs::rename(tmp, app.data_dir.join(format!("background.{ext}")))
-    })();
-    if let Err(e) = saved {
-        return (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "error": e.to_string() }))).into_response();
-    }
-    let version = background(&app).map(|b| b.2);
-    broadcast(&app, 0, &json!({ "t": "background", "v": version }));
-    Json(json!({ "v": version })).into_response()
-}
-
-async fn delete_background(State(app): State<Shared>, headers: HeaderMap, Query(q): Query<HashMap<String, String>>) -> Response {
-    if !authed(&app, &headers, &q) {
-        return (StatusCode::FORBIDDEN, Json(json!({ "error": "wrong key" }))).into_response();
-    }
-    remove_background(&app);
-    broadcast(&app, 0, &json!({ "t": "background", "v": null }));
-    Json(json!({ "v": null })).into_response()
 }
 
 // ------------------------------------------------------------------ layouts config
@@ -342,8 +259,7 @@ async fn ws_conn(app: Shared, socket: WebSocket, client: Option<String>) {
         #[cfg(feature = "webrtc")]
         peer: None,
     };
-    conn.send_json(json!({ "t": "hello", "name": app.name, "keys": keys::table(), "rtc": cfg!(feature = "webrtc"),
-                         "background": background(&app).map(|b| b.2) }));
+    conn.send_json(json!({ "t": "hello", "name": app.name, "keys": keys::table(), "rtc": cfg!(feature = "webrtc") }));
     if app.text_focus.load(Ordering::Relaxed) {
         conn.send_json(json!({ "t": "focus", "text": true }));
     }
@@ -661,8 +577,6 @@ async fn main() -> anyhow::Result<()> {
         .route("/ws", get(ws_upgrade))
         .route("/api/self", get(api_self))
         .route("/icon.png", get(icon))
-        .route("/background", get(get_background))
-        .route("/api/background", put(put_background).delete(delete_background).layer(DefaultBodyLimit::max(BACKGROUND_MAX)))
         .route("/{file}", get(static_file))
         .with_state(app.clone());
 
@@ -681,19 +595,4 @@ async fn main() -> anyhow::Result<()> {
     }
     axum::serve(listener, router).await?;
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn pictures_are_recognised_by_their_first_bytes() {
-        assert_eq!(image_ext(&[0x89, b'P', b'N', b'G', 13, 10]), Some("png"));
-        assert_eq!(image_ext(&[0xFF, 0xD8, 0xFF, 0xE0]), Some("jpg"));
-        assert_eq!(image_ext(b"RIFF\x10\0\0\0WEBPVP8 "), Some("webp"));
-        assert_eq!(image_ext(b"GIF89a"), Some("gif"));
-        assert_eq!(image_ext(b"<svg onload=alert(1)>"), None);
-        assert_eq!(image_ext(b""), None);
-    }
 }

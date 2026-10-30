@@ -23,7 +23,7 @@
   --shadow:0 2px 0 #bfe8d6; --radius:20px; color-scheme:light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
 html, body { margin:0; height:100%; background:var(--bg); color:var(--fg); font:16px var(--font); }
-body { background-image:var(--pattern); background-size:var(--bg-size, auto); background-repeat:var(--bg-repeat, repeat); background-position:center; }
+body { background-image:var(--pattern); }
 body { display:flex; flex-direction:column; height:100dvh; overflow:hidden; user-select:none; -webkit-user-select:none;
        padding:env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left); }
 button { font:inherit; color:inherit; border:0; cursor:pointer; }
@@ -213,8 +213,6 @@ button.wide.danger { background:var(--danger-bg); color:var(--danger-fg); }
 .custom-fields { display:flex; flex-direction:column; gap:12px; padding:6px 0 4px; }
 .settings .field { display:flex; flex-direction:column; gap:4px; font-size:13px; color:var(--dim); }
 .color-field input:not([type]), .color-field input[type=text] { background:var(--card); padding:10px 12px; }
-.background-settings { display:flex; flex-direction:column; gap:10px; }
-.background-settings input[type=range] { width:100%; accent-color:var(--acc); }
 
 /* theme picker (Settings) */
 .themes { display:grid; grid-template-columns:repeat(auto-fill, minmax(96px, 1fr)); gap:10px; }

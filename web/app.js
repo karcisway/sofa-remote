@@ -90,39 +90,6 @@ function syncTiles() {
   }
 }
 
-// Background picture (stored on the PC, see src/main.rs); dimmed towards the theme's background colour
-function applyBackground() {
-  const root = document.documentElement.style, srv = app.servers.find(s => s.id === 'self'), v = app.bgVersion;
-  if (!srv || v == null) {
-    for (const k of ['--pattern', '--bg-size', '--bg-repeat']) root.removeProperty(k);
-    return;
-  }
-  const shade = `color-mix(in srgb, var(--bg) ${Math.round(store.get('bgDim', 0.35) * 100)}%, transparent)`;
-  const url = `${srv.url}/background?k=${encodeURIComponent(srv.key)}&v=${v}`;
-  root.setProperty('--pattern', `linear-gradient(${shade}, ${shade}), url("${url}")`);
-  root.setProperty('--bg-size', 'cover');
-  root.setProperty('--bg-repeat', 'no-repeat');
-}
-// Phone photos are big: shrink to 1920 px and send as JPEG
-async function uploadBackground(srv, file) {
-  let img;
-  try { img = await createImageBitmap(file); } catch { throw new Error('That file isn’t a picture this phone can open'); }
-  const scale = Math.min(1, 1920 / Math.max(img.width, img.height));
-  const canvas = h('canvas');
-  canvas.width = Math.round(img.width * scale); canvas.height = Math.round(img.height * scale);
-  canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-  const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.88));
-  const r = await fetch(`${srv.url}/api/background?k=${encodeURIComponent(srv.key)}`, { method: 'PUT', body: blob });
-  const reply = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(reply.error || 'Upload failed');
-  app.setBackground(reply.v);
-}
-async function removeBackground(srv) {
-  const r = await fetch(`${srv.url}/api/background?k=${encodeURIComponent(srv.key)}`, { method: 'DELETE' });
-  if (!r.ok) throw new Error('Could not remove the background');
-  app.setBackground(null);
-}
-
 // Icons: "lucide:play" is a Lucide icon from icons.svg (https://lucide.dev, ~1900 of them);
 // anything else (emoji, "F5", "Esc") is shown as text.
 const ICON_PREFIX = 'lucide:';
@@ -258,7 +225,6 @@ class Server {
       this.codes = Array.isArray(m.keys) ? null : m.keys;
       Object.keys(m.keys || {}).forEach(k => app.keyNames.add(k));
       this.rtcAvailable = !!m.rtc;
-      if (this.id === 'self') app.setBackground(m.background);
       app.updateKeyList();
       app.saveServers();
       app.renderTabs();
@@ -270,8 +236,6 @@ class Server {
       m.error ? p.reject(new Error(m.error)) : p.resolve(m);
     } else if (m.t === 'config') {
       this.setConfig(m.config);
-    } else if (m.t === 'background') {
-      if (this.id === 'self') app.setBackground(m.v);
     } else if (m.t === 'pad_driver') {
       this.padOpened = false;   // the next press plugs the controller in (or offers the install again)
       this.padRetryAt = 0;
@@ -1346,7 +1310,6 @@ const app = {
   tab: store.get('tab', null),   // "serverId/layoutId" or "settings"
   edit: null,                    // { srv, draft } while editing a server's layouts
   keyNames: new Set(),
-  bgVersion: null,               // version of the background picture on this PC, or null
   statusMsg: null,
   statusTimer: 0,
 
@@ -1411,12 +1374,6 @@ const app = {
       const using = wake === 'always' || (wake === 'active' && now - this.lastInput < 3000);
       if (using && now - this.lastSent > 80 && cur?.online) { this.lastSent = now; cur.ping(); }
     }, 50);
-  },
-
-  setBackground(v) {
-    this.bgVersion = v ?? null;
-    applyBackground();
-    if (this.tab === 'settings' && !this.edit) this.render();
   },
 
   saveServers() {
@@ -1653,7 +1610,6 @@ const app = {
         onclick: () => { store.set('theme', applyTheme(t.id)); syncTiles(); },
       }, h('span', { class: 'swatch' }, t.colors.map(c => h('i', { style: `--c:${c}` }))), t.name))),
       this.customLookSettings(),
-      this.backgroundSettings(),
       this.phoneButtonSettings(),
       h('h2', {}, 'Latency'),
       check('Show latency on screen', h('input', { type: 'checkbox', checked: store.get('showPing', false),
@@ -1716,31 +1672,6 @@ const app = {
       h('summary', {}, 'Custom colours'),
       h('div', { class: 'custom-fields' }, rows,
         h('button', { class: 'small', onclick: () => { store.set('customTheme', {}); store.set('theme', applyTheme('custom')); this.render(); } }, 'Reset colours')));
-  },
-
-  // Background picture, kept on the PC (next to layouts.json) so every phone using it shows it
-  backgroundSettings() {
-    const srv = this.servers.find(s => s.id === 'self');
-    if (!srv) return null;
-    const file = h('input', { type: 'file', accept: 'image/*', hidden: true });
-    file.addEventListener('change', async () => {
-      const picked = file.files[0];
-      if (!picked) return;
-      try { this.status('Uploading…'); await uploadBackground(srv, picked); this.status('Background saved on ' + srv.label, false, true); }
-      catch (e) { this.status(e.message, true); }
-      file.value = '';
-    });
-    const dim = h('input', { type: 'range', min: 0, max: 90, value: Math.round(store.get('bgDim', 0.35) * 100) });
-    dim.addEventListener('input', () => { store.set('bgDim', dim.value / 100); applyBackground(); });
-    const has = this.bgVersion != null;
-    return h('div', { class: 'background-settings' },
-      h('div', { class: 'row' },
-        h('button', { class: 'small', onclick: () => file.click() }, has ? 'Change background image' : 'Choose background image'),
-        has ? h('button', { class: 'small', onclick: async () => {
-          try { await removeBackground(srv); } catch (e) { this.status(e.message, true); }
-        } }, 'Remove') : null, file),
-      has ? field('Dim the image', dim) : null,
-      h('p', { class: 'note' }, `The picture is saved on ${srv.label} (next to layouts.json), so every phone using it shows it.`));
   },
 
   phoneButtonSettings() {
