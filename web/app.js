@@ -391,16 +391,28 @@ async function run(action, srv, phase = 'down') {
   }
 }
 
-// Power actions (src/power.rs).
+// Power actions (src/power.rs). `ask`: hold to confirm by default, because there is no taking them back.
 const POWER = {
-  shutdown: { text: 'Shut down' },
-  restart: { text: 'Restart' },
-  hibernate: { text: 'Hibernate' },
-  signout: { text: 'Sign out' },
+  shutdown: { text: 'Shut down', ask: true },
+  restart: { text: 'Restart', ask: true },
+  hibernate: { text: 'Hibernate', ask: true },
+  signout: { text: 'Sign out', ask: true },
   sleep: { text: 'Sleep' },
   lock: { text: 'Lock' },
   screenoff: { text: 'Screen off' },
 };
+const defaultConfirm = action => !!(action && POWER[action.power]?.ask);
+
+// Hold to confirm: a button with `confirm` only runs once it has been held down for that long,
+// while a tint fills it, so it can't be hit by mistake. `confirm` is true (HOLD_MS), a number of
+// milliseconds, or false; the dangerous power actions above hold by default. Games' hold actions
+// never do. Returns the time to hold in ms, or 0 to run at once.
+const HOLD_MS = 1200;
+function holdFor(w, action) {
+  if (!action || ['hold', 'hold_mouse', 'pad'].some(k => action[k] != null)) return 0;
+  const c = w.confirm ?? defaultConfirm(action);
+  return typeof c === 'number' ? clamp(c, 200, 10000) : c ? HOLD_MS : 0;
+}
 
 // Every pressed control registers its release, so everything can be let go at once
 const activeReleases = new Set();
@@ -504,7 +516,24 @@ const WIDGETS = {
       w.label ? h('small', {}, w.label) : null);
     let action = typeof w.action === 'string' ? { key: w.action } : w.action;
     if (action && w.server && !action.server) action = { ...action, server: w.server };
-    pressable(el, phase => run(action, srv, phase), w.repeat);
+    const holdMs = holdFor(w, action);
+    if (holdMs) {
+      let timer = 0, done = false;
+      const stop = () => { clearTimeout(timer); el.classList.remove('filling'); };
+      pressable(el, phase => {
+        if (phase === 'down') {
+          done = false;
+          el.style.setProperty('--fill', holdMs + 'ms');
+          el.classList.remove('filling');
+          void el.offsetWidth;   // restart the CSS animation
+          el.classList.add('filling');
+          timer = setTimeout(() => { done = true; stop(); vibrate(40); run(action, srv); }, holdMs);
+        } else {
+          if (!done) app.status(`Hold for ${+(holdMs / 1000).toFixed(1)} s to run`);
+          stop();
+        }
+      });
+    } else pressable(el, phase => run(action, srv, phase), w.repeat);
     return el;
   },
 
@@ -1015,11 +1044,13 @@ function openWidgetSheet(layout, w, isNew = false) {
   const type = h('select', {}, Object.entries(WIDGET_TYPES).map(([k, t]) => h('option', { value: k, selected: k === (w.type || 'button') }, t.name)));
   const label = h('input', { value: w.label || '', placeholder: 'shown under the icon' });
   const icon = h('input', { value: w.icon || '', placeholder: 'pick one, or type text: F5' });
-  const style = h('select', {}, ['', 'accent', 'dark'].map(s => h('option', { value: s, selected: (w.style || '') === s }, s || 'default')));
+  const style = h('select', {}, ['', 'accent', 'dark', 'danger'].map(s => h('option', { value: s, selected: (w.style || '') === s }, s || 'default')));
   const color = h('input', { value: w.color || '', placeholder: 'any CSS colour, e.g. #8a2be2' });
   const ww = h('input', { type: 'number', min: 1, max: layout.cols || 12, value: w.w || 1 });
   const wh = h('input', { type: 'number', min: 1, max: 40, value: w.h || 1 });
   const repeat = h('input', { type: 'checkbox', checked: !!w.repeat });
+  const ask = h('input', { type: 'checkbox', checked: holdFor(w, w.action) > 0 });
+  const holdSecs = h('input', { type: 'number', min: 0.2, max: 10, step: 0.1, value: (typeof w.confirm === 'number' ? w.confirm : HOLD_MS) / 1000 });
   const kind = h('select', {}, ACTION_KINDS.map(([k, n]) => h('option', { value: k, selected: k === kind0 }, n)));
   const value = h('input', { value: kind0 === 'custom' ? '' : value0, list: 'keylist', autocapitalize: 'off', autocorrect: 'off' });
   const custom = h('textarea', { class: 'code' }, kind0 === 'custom' ? value0 : '');
@@ -1027,9 +1058,11 @@ function openWidgetSheet(layout, w, isNew = false) {
   const advInitial = JSON.stringify(w, null, 2);
   const adv = h('textarea', { class: 'code', style: 'min-height:180px' }, advInitial);
 
+  const holdField = field('Hold time (seconds)', holdSecs);
   const valueField = field('Value', value), customField = field('Action JSON', custom);
   const buttonFields = h('div', { style: 'display:contents' }, field('Icon', iconPicker(icon)), field('Style', style), field('Colour', color),
-    field('Action', kind), valueField, customField, check('Repeat while held', repeat));
+    field('Action', kind), valueField, customField, check('Repeat while held', repeat), check('Hold to confirm (can’t be pressed by mistake)', ask),
+    holdField);
   const sync = () => {
     const isButton = type.value === 'button';
     buttonFields.style.display = isButton ? 'contents' : 'none';
@@ -1044,6 +1077,17 @@ function openWidgetSheet(layout, w, isNew = false) {
     sync();
   });
   kind.addEventListener('change', sync);
+  // Picking a power action ticks "Hold to confirm" for the dangerous ones, until it's changed by hand
+  let askTouched = false;
+  const showHold = () => (holdField.hidden = !ask.checked);
+  ask.addEventListener('change', () => { askTouched = true; showHold(); });
+  const syncAsk = () => {
+    if (!askTouched && w.confirm == null) ask.checked = defaultConfirm({ power: kind.value === 'power' ? value.value.trim() : null });
+    showHold();
+  };
+  kind.addEventListener('change', syncAsk);
+  value.addEventListener('input', syncAsk);
+  showHold();
 
   const body = h('div', { style: 'display:flex;flex-direction:column;gap:10px' },
     field('Type', type), field('Label', label), buttonFields,
@@ -1061,6 +1105,10 @@ function openWidgetSheet(layout, w, isNew = false) {
         if (type.value === 'button') {
           Object.assign(out, { icon: icon.value || undefined, style: style.value || undefined, color: color.value || undefined,
             repeat: repeat.checked || undefined, action: fieldsToAction(kind.value, kind.value === 'custom' ? custom.value : value.value) });
+          // stored only when it differs from the default; a typed message stays as it is
+          const dflt = defaultConfirm(out.action);
+          const ms = Math.round(clamp(+holdSecs.value || HOLD_MS / 1000, 0.2, 10) * 1000);
+          out.confirm = !ask.checked ? (dflt ? false : undefined) : ms !== HOLD_MS ? ms : dflt ? undefined : true;
         }
         out = JSON.parse(JSON.stringify(out)); // drop undefined
       }
