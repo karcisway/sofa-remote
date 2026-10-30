@@ -242,7 +242,7 @@ in px. `fit: true` + `rows` makes a fixed grid that fills the screen (good for g
 
 | type | extra fields |
 | --- | --- |
-| `button` | `action`, `icon`, `style` (`accent`/`dark`/`danger`), `color`, `repeat` (`true` or ms), `confirm` (`true` or hold time in ms; see below) |
+| `button` | `action`, `icon`, `style` (`accent`/`dark`/`danger`), `color`, `repeat` (`true` or ms), `confirm` (`true` or hold time in ms), `confirmColor` (see below) |
 | `joystick` | `mode`: `keys` (default; `keys: {"up":"w","left":"a","down":"s","right":"d"}`, `deadzone`), `mouse` (`speed`) or `pad` (analog stick of the virtual gamepad; `stick`: `left`/`right`) |
 | `touchpad` | `sens`. Tap: click. Hold still: right click (or the R corner button). Tap then touch again and drag: drag with the left button held (select, move, resize). Double tap: double click |
 | `keyboard` | live typing field, with 🎤 voice input and a ⏎ button that sends Enter |
@@ -278,7 +278,7 @@ Key names: `a`–`z`, `0`–`9`, `f1`–`f24`, `num0`–`num9`, `enter`, `esc`, 
 
 Tick **Hold to confirm** when editing a button (or add `"confirm": true`) and it only runs after the
 finger has stayed on it for 1.2 s, while a red tint fills the button. Let go early and nothing happens.
-`"confirm": 2500` sets the time in milliseconds. `shutdown`, `restart`, `hibernate` and `signout`
+`"confirm": 2500` sets the time in milliseconds and `"confirmColor": "#22aa55"` the tint (both are fields in the editor). `shutdown`, `restart`, `hibernate` and `signout`
 hold by default; `"confirm": false` turns that off. Hold actions for games never wait.
 
 The built-in **PC** tab has the power buttons plus window shortcuts for Windows (Alt+Tab, Ctrl+Tab,

@@ -524,6 +524,7 @@ const WIDGETS = {
         if (phase === 'down') {
           done = false;
           el.style.setProperty('--fill', holdMs + 'ms');
+          if (w.confirmColor) el.style.setProperty('--fill-color', w.confirmColor);
           el.classList.remove('filling');
           void el.offsetWidth;   // restart the CSS animation
           el.classList.add('filling');
@@ -1058,7 +1059,8 @@ function openWidgetSheet(layout, w, isNew = false) {
   const advInitial = JSON.stringify(w, null, 2);
   const adv = h('textarea', { class: 'code', style: 'min-height:180px' }, advInitial);
 
-  const holdField = field('Hold time (seconds)', holdSecs);
+  const holdColor = h('input', { value: w.confirmColor || '', placeholder: 'tint while holding: any CSS colour (default red)' });
+  const holdField = h('div', { style: 'display:contents' }, field('Hold time (seconds)', holdSecs), field('Hold tint', holdColor));
   const valueField = field('Value', value), customField = field('Action JSON', custom);
   const buttonFields = h('div', { style: 'display:contents' }, field('Icon', iconPicker(icon)), field('Style', style), field('Colour', color),
     field('Action', kind), valueField, customField, check('Repeat while held', repeat), check('Hold to confirm (can’t be pressed by mistake)', ask),
@@ -1108,6 +1110,7 @@ function openWidgetSheet(layout, w, isNew = false) {
           // stored only when it differs from the default; a typed message stays as it is
           const dflt = defaultConfirm(out.action);
           const ms = Math.round(clamp(+holdSecs.value || HOLD_MS / 1000, 0.2, 10) * 1000);
+          out.confirmColor = ask.checked && holdColor.value.trim() || undefined;
           out.confirm = !ask.checked ? (dflt ? false : undefined) : ms !== HOLD_MS ? ms : dflt ? undefined : true;
         }
         out = JSON.parse(JSON.stringify(out)); // drop undefined
