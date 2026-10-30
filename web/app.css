@@ -188,13 +188,20 @@ dialog { width:min(560px,100%); max-width:100%; max-height:88dvh; margin:auto au
 dialog::backdrop { background:var(--backdrop); }
 dialog h3 { margin:0 0 12px; font-size:17px; }
 dialog form { display:flex; flex-direction:column; gap:10px; }
-dialog label { display:flex; flex-direction:column; gap:4px; font-size:13px; color:var(--dim); }
+dialog label, dialog .field { display:flex; flex-direction:column; gap:4px; font-size:13px; color:var(--dim); }
 dialog [hidden] { display:none !important; }
 dialog label.check { flex-direction:row; align-items:center; gap:10px; font-size:15px; color:var(--fg); }
 dialog label.check input { width:22px; height:22px; }
 dialog input, dialog select, dialog textarea { background:var(--bg); padding:10px 12px; }
 dialog textarea.code { font:13px ui-monospace,Consolas,monospace; min-height:120px; }
 dialog details summary { color:var(--dim); font-size:14px; padding:4px 0; }
+.color-field { display:flex; gap:8px; align-items:center; }
+.color-field input[type=text], .color-field input:not([type]) { flex:1; min-width:0; }
+.color-field .color-swatch { flex:none; width:44px; height:44px; padding:3px; border-radius:12px; cursor:pointer; }
+.style-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; background:var(--bg); padding:12px; border-radius:14px; }
+.style-grid .btn { min-height:54px; }
+.style-grid .btn.sel { outline:2px solid var(--acc); outline-offset:3px; }
+.tint-preview { background:var(--bg); min-height:44px; width:100%; }
 .pair { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
 .sheet-buttons { display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-end; margin-top:6px; }
 .sheet-buttons button { background:var(--card2); border-radius:10px; padding:11px 16px; font-size:15px; }

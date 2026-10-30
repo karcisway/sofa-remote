@@ -1039,14 +1039,49 @@ function iconPicker(input) {
   return h('div', {}, h('div', { class: 'icon-field' }, preview, input, toggle), panel);
 }
 
+// "#rrggbb" for any CSS colour (names, rgb(), var(--x)), or null if it isn't one. <input type=color> needs this.
+function toHex(css) {
+  const el = h('i', { style: 'color:' + css });
+  if (!css || !el.style.color) return null;
+  document.body.append(el);
+  const rgb = getComputedStyle(el).color.match(/[0-9.]+/g);
+  el.remove();
+  return rgb && '#' + rgb.slice(0, 3).map(n => Math.round(+n).toString(16).padStart(2, '0')).join('');
+}
+// Colour field for the editor: the system colour picker plus the text (any CSS colour), and a reset.
+// `fallback` is the colour shown while the text is empty.
+function colorPicker(input, fallback) {
+  const picker = h('input', { type: 'color', 'aria-label': 'Pick a colour', class: 'color-swatch' });
+  const sync = () => (picker.value = toHex(input.value) || toHex(fallback) || '#000000');
+  picker.addEventListener('input', () => { input.value = picker.value; });
+  input.addEventListener('input', sync);
+  sync();
+  return h('div', { class: 'color-field' }, picker, input,
+    h('button', { type: 'button', class: 'small', onclick: () => { input.value = ''; sync(); } }, 'Reset'));
+}
+
+// The button styles drawn as real buttons (with the icon and label typed so far), one to tap.
+const BUTTON_STYLES = [['', 'Default'], ['accent', 'Accent'], ['dark', 'Dark'], ['danger', 'Danger']];
+function stylePicker(current, icon, label) {
+  let value = current || '';
+  const grid = h('div', { class: 'style-grid' });
+  const draw = () => grid.replaceChildren(...BUTTON_STYLES.map(([v, name]) =>
+    h('button', { type: 'button', class: 'btn ' + v + (v === value ? ' sel' : ''), 'aria-pressed': v === value, onclick: () => { value = v; draw(); } },
+      icon.value ? iconEl(icon.value) : null, h('small', {}, label.value || name))));
+  icon.addEventListener('input', draw);
+  label.addEventListener('input', draw);
+  draw();
+  return { el: grid, get value() { return value; } };
+}
+
 function openWidgetSheet(layout, w, isNew = false) {
   const owner = app.edit.srv;
   const [kind0, value0] = actionToFields(w.action);
   const type = h('select', {}, Object.entries(WIDGET_TYPES).map(([k, t]) => h('option', { value: k, selected: k === (w.type || 'button') }, t.name)));
   const label = h('input', { value: w.label || '', placeholder: 'shown under the icon' });
   const icon = h('input', { value: w.icon || '', placeholder: 'pick one, or type text: F5' });
-  const style = h('select', {}, ['', 'accent', 'dark', 'danger'].map(s => h('option', { value: s, selected: (w.style || '') === s }, s || 'default')));
-  const color = h('input', { value: w.color || '', placeholder: 'any CSS colour, e.g. #8a2be2' });
+  const style = stylePicker(w.style, icon, label);
+  const color = h('input', { value: w.color || '', placeholder: 'any CSS colour' });
   const ww = h('input', { type: 'number', min: 1, max: layout.cols || 12, value: w.w || 1 });
   const wh = h('input', { type: 'number', min: 1, max: 40, value: w.h || 1 });
   const repeat = h('input', { type: 'checkbox', checked: !!w.repeat });
@@ -1059,10 +1094,23 @@ function openWidgetSheet(layout, w, isNew = false) {
   const advInitial = JSON.stringify(w, null, 2);
   const adv = h('textarea', { class: 'code', style: 'min-height:180px' }, advInitial);
 
-  const holdColor = h('input', { value: w.confirmColor || '', placeholder: 'tint while holding: any CSS colour (default red)' });
-  const holdField = h('div', { style: 'display:contents' }, field('Hold time (seconds)', holdSecs), field('Hold tint', holdColor));
+  const holdColor = h('input', { value: w.confirmColor || '', placeholder: 'any CSS colour' });
+  // tap to watch the fill with the current time and tint
+  const tintPreview = () => {
+    const sample = h('button', { type: 'button', class: 'btn tint-preview' }, h('small', {}, 'Tap to preview the hold'));
+    sample.addEventListener('click', () => {
+      sample.style.setProperty('--fill', (clamp(+holdSecs.value || HOLD_MS / 1000, 0.2, 10)) + 's');
+      sample.style.setProperty('--fill-color', holdColor.value.trim() || 'var(--err)');
+      sample.classList.remove('filling');
+      void sample.offsetWidth;
+      sample.classList.add('filling');
+    });
+    sample.addEventListener('animationend', () => sample.classList.remove('filling'));
+    return sample;
+  };
+  const holdField = h('div', { style: 'display:contents' }, field('Hold time (seconds)', holdSecs), field('Hold tint (default red)', colorPicker(holdColor, 'var(--err)')), tintPreview());
   const valueField = field('Value', value), customField = field('Action JSON', custom);
-  const buttonFields = h('div', { style: 'display:contents' }, field('Icon', iconPicker(icon)), field('Style', style), field('Colour', color),
+  const buttonFields = h('div', { style: 'display:contents' }, field('Icon', iconPicker(icon)), h('div', { class: 'field' }, 'Style', style.el), field('Colour (replaces the style)', colorPicker(color, 'var(--card)')),
     field('Action', kind), valueField, customField, check('Repeat while held', repeat), check('Hold to confirm (can’t be pressed by mistake)', ask),
     holdField);
   const sync = () => {
