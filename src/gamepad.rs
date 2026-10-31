@@ -543,7 +543,8 @@ mod tests {
             packet: u32,
             gamepad: vigem_client::XGamepad,
         }
-        #[link(name = "xinput1_4")]
+        // raw-dylib: MSVC's SDK has no xinput1_4.lib (only MinGW does), so link the DLL directly
+        #[link(name = "xinput1_4", kind = "raw-dylib")]
         unsafe extern "system" {
             fn XInputGetState(index: u32, state: *mut State) -> u32;
         }
