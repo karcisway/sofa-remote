@@ -832,8 +832,10 @@ const WIDGETS = {
       if (moved >= 10) cancelLong();
       // Acceleration on a smoothed speed (px/ms): slow moves are precise, fast ones cover the
       // screen, and the gain changes gradually so the cursor doesn't stutter.
+      // accel 'pc' sends the moves unscaled by speed, leaving acceleration to the PC's pointer
+      // settings (Windows applies "Enhance pointer precision" to them).
       speed = speed * 0.6 + Math.hypot(dx, dy) / dt * 0.4;
-      const k = sens * clamp(0.75 + speed * 0.5, 0.75, 2.2);
+      const k = w.accel === 'pc' ? sens : sens * clamp(0.75 + speed * 0.5, 0.75, 2.2);
       ax += dx * k; ay += dy * k;
       flush();
     });
@@ -1262,6 +1264,10 @@ function openWidgetSheet(layout, w, isNew = false) {
   const value = h('input', { value: kind0 === 'custom' ? '' : value0, list: 'keylist', autocapitalize: 'off', autocorrect: 'off' });
   const custom = h('textarea', { class: 'code' }, kind0 === 'custom' ? value0 : '');
   const server = serverSelect(w.server, owner);
+  const accel = h('select', {}, [['', 'Phone (faster swipes go further)'], ['pc', 'PC’s own pointer setting']]
+    .map(([v, n]) => h('option', { value: v, selected: v === (w.accel || '') }, n)));
+  const sens = h('input', { type: 'number', min: 0.2, max: 10, step: 0.1, value: w.sens ?? 2.2 });
+  const padFields = h('div', { style: 'display:contents' }, field('Acceleration', accel), field('Speed', sens));
   const advInitial = JSON.stringify(w, null, 2);
   const adv = h('textarea', { class: 'code', style: 'min-height:180px' }, advInitial);
 
@@ -1287,6 +1293,7 @@ function openWidgetSheet(layout, w, isNew = false) {
   const sync = () => {
     const isButton = type.value === 'button';
     buttonFields.style.display = isButton ? 'contents' : 'none';
+    padFields.style.display = type.value === 'touchpad' ? 'contents' : 'none';
     const hint = ACTION_KINDS.find(k => k[0] === kind.value);
     valueField.hidden = kind.value === 'custom';
     customField.hidden = kind.value !== 'custom';
@@ -1311,7 +1318,7 @@ function openWidgetSheet(layout, w, isNew = false) {
   showHold();
 
   const body = h('div', { style: 'display:flex;flex-direction:column;gap:10px' },
-    field('Type', type), field('Label', label), buttonFields,
+    field('Type', type), field('Label', label), buttonFields, padFields,
     h('div', { class: 'pair' }, field('Width (columns)', ww), field('Height (rows)', wh)),
     field('Sends to', server),
     h('details', {}, h('summary', {}, 'Advanced: edit as JSON (joystick keys, speed, sensitivity…)'), adv));
@@ -1323,6 +1330,10 @@ function openWidgetSheet(layout, w, isNew = false) {
       if (adv.value.trim() !== advInitial.trim()) out = JSON.parse(adv.value);
       else {
         out = { ...w, type: type.value, label: label.value || undefined, w: +ww.value || 1, h: +wh.value || 1, server: server.value || undefined };
+        if (type.value === 'touchpad') {
+          const s = clamp(+sens.value || 2.2, 0.2, 10);
+          Object.assign(out, { accel: accel.value || undefined, sens: s !== 2.2 ? s : undefined });
+        }
         if (type.value === 'button') {
           Object.assign(out, { icon: icon.value || undefined, style: style.value || undefined, color: color.value || undefined,
             repeat: repeat.checked || undefined, action: fieldsToAction(kind.value, kind.value === 'custom' ? custom.value : value.value) });
