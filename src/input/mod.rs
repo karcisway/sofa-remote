@@ -54,6 +54,16 @@ pub enum Cmd {
     Click(Click),
     /// Wheel units: 120 per notch, positive = up/right (Windows convention).
     Scroll { dy: i32, dx: i32 },
+    /// Two-finger zoom around the cursor. `scale`: finger spread now / at the start;
+    /// `wheel`: the same change as wheel units, for backends that zoom with Ctrl + wheel.
+    Pinch { phase: Phase, scale: f32, wheel: i32 },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Phase {
+    Start,
+    Move,
+    End,
 }
 
 /// The interface each platform backend implements.
@@ -63,6 +73,19 @@ pub trait Platform {
     fn move_rel(&mut self, dx: i32, dy: i32);
     fn button(&mut self, button: Button, down: bool);
     fn scroll(&mut self, dy: i32, dx: i32);
+    fn pinch(&mut self, phase: Phase, _scale: f32, wheel: i32) {
+        wheel_zoom(self, phase, wheel);
+    }
+}
+
+/// Zoom the way a mouse does it: Ctrl held down while the wheel turns.
+fn wheel_zoom(backend: &mut (impl Platform + ?Sized), phase: Phase, wheel: i32) {
+    match phase {
+        Phase::Start => backend.key(crate::keys::VK_LCONTROL, true),
+        Phase::Move if wheel != 0 => backend.scroll(wheel, 0),
+        Phase::Move => {}
+        Phase::End => backend.key(crate::keys::VK_LCONTROL, false),
+    }
 }
 
 fn run(backend: &mut impl Platform, cmd: Cmd) {
@@ -113,6 +136,7 @@ fn run(backend: &mut impl Platform, cmd: Cmd) {
             }
         }
         Cmd::Scroll { dy, dx } => backend.scroll(dy, dx),
+        Cmd::Pinch { phase, scale, wheel } => backend.pinch(phase, scale, wheel),
     }
 }
 

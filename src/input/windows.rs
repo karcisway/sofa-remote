@@ -6,7 +6,7 @@
 //! onto the desktop that currently receives input. Windows only lets SYSTEM do that, so the
 //! thread borrows winlogon.exe's token, which works when sofa-remote runs as administrator.
 
-use super::{Button, Platform};
+use super::{Button, Phase, Platform, wheel_zoom};
 use crate::keys::is_media;
 use std::ptr::{null, null_mut};
 use std::time::{Duration, Instant};
@@ -27,6 +27,15 @@ use windows_sys::Win32::System::Threading::{
     PROCESS_QUERY_LIMITED_INFORMATION, SetThreadToken,
 };
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::*;
+use windows_sys::Win32::Foundation::{POINT, RECT};
+use windows_sys::Win32::UI::Input::Pointer::{
+    InitializeTouchInjection, InjectTouchInput, POINTER_FLAG_DOWN, POINTER_FLAG_INCONTACT, POINTER_FLAG_INRANGE,
+    POINTER_FLAG_UP, POINTER_FLAG_UPDATE, POINTER_TOUCH_INFO, TOUCH_FEEDBACK_NONE,
+};
+use windows_sys::Win32::UI::WindowsAndMessaging::{
+    GetCursorPos, GetSystemMetrics, PT_TOUCH, SM_CXVIRTUALSCREEN, SM_CYVIRTUALSCREEN, SM_XVIRTUALSCREEN,
+    SM_YVIRTUALSCREEN, TOUCH_MASK_CONTACTAREA,
+};
 
 const EXTENDED: &[u16] = &[0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x2C, 0x2D, 0x2E,
                            0x5B, 0x5C, 0x5D, 0x6F, 0xA3, 0xA5];
@@ -43,12 +52,16 @@ pub struct Backend {
     /// Already tried to run as SYSTEM (needed to open the lock screen's desktop; once is enough).
     tried_system: bool,
     warned: bool,
+    /// Pinch under way: where the two injected fingers are centred, or None when it went
+    /// through Ctrl + wheel instead (touch injection unavailable).
+    pinch: Option<Option<POINT>>,
+    touch_ready: bool,
 }
 
 impl Backend {
     pub fn new() -> Result<Self, String> {
         let desktop_name = desktop_name(unsafe { GetThreadDesktop(GetCurrentThreadId()) });
-        Ok(Backend { desktop: null_mut(), desktop_name, checked: Instant::now(), tried_system: false, warned: false })
+        Ok(Backend { desktop: null_mut(), desktop_name, checked: Instant::now(), tried_system: false, warned: false, pinch: None, touch_ready: false })
     }
 
     fn send(&mut self, inputs: &[INPUT]) {
@@ -235,6 +248,45 @@ impl Platform for Backend {
         self.send(&[mouse(flags, 0, 0, 0)]);
     }
 
+    /// Real pinch zoom: two touch contacts injected around the cursor, moving apart or together,
+    /// so browsers and apps zoom smoothly the way they do on a touch screen or precision touchpad
+    /// (not Ctrl + wheel's page zoom steps). Falls back to Ctrl + wheel if Windows refuses.
+    fn pinch(&mut self, phase: Phase, scale: f32, wheel: i32) {
+        if phase == Phase::Start {
+            if let Some(None) = self.pinch {
+                wheel_zoom(self, Phase::End, 0);
+            }
+            self.follow_input_desktop(false);
+            let mut at = POINT { x: 0, y: 0 };
+            let touch = unsafe {
+                (self.touch_ready || InitializeTouchInjection(2, TOUCH_FEEDBACK_NONE) != 0) && GetCursorPos(&mut at) != 0
+            };
+            self.touch_ready |= touch;
+            self.pinch = Some(touch.then_some(at));
+            if touch && self.touch(at, 1.0, POINTER_FLAG_DOWN | POINTER_FLAG_INRANGE | POINTER_FLAG_INCONTACT) {
+                return;
+            }
+            self.pinch = Some(None);
+            return wheel_zoom(self, Phase::Start, 0);
+        }
+        match self.pinch {
+            Some(Some(at)) if phase == Phase::Move => {
+                self.touch(at, scale, POINTER_FLAG_UPDATE | POINTER_FLAG_INRANGE | POINTER_FLAG_INCONTACT);
+            }
+            Some(Some(at)) => {
+                self.touch(at, scale, POINTER_FLAG_UP);
+                self.pinch = None;
+            }
+            Some(None) => {
+                wheel_zoom(self, phase, wheel);
+                if phase == Phase::End {
+                    self.pinch = None;
+                }
+            }
+            None => {}
+        }
+    }
+
     fn scroll(&mut self, dy: i32, dx: i32) {
         if dy != 0 {
             self.send(&[mouse(MOUSEEVENTF_WHEEL, 0, 0, dy)]);
@@ -242,5 +294,31 @@ impl Platform for Backend {
         if dx != 0 {
             self.send(&[mouse(MOUSEEVENTF_HWHEEL, 0, 0, dx)]);
         }
+    }
+}
+
+/// Half the distance between the two injected fingers at the start of a pinch, in pixels.
+const PINCH_HALF: f32 = 120.0;
+
+impl Backend {
+    /// Two touch contacts side by side around `at`, `PINCH_HALF * scale` from it, kept on screen.
+    fn touch(&self, at: POINT, scale: f32, flags: u32) -> bool {
+        let (left, top) = unsafe { (GetSystemMetrics(SM_XVIRTUALSCREEN), GetSystemMetrics(SM_YVIRTUALSCREEN)) };
+        let (w, h) = unsafe { (GetSystemMetrics(SM_CXVIRTUALSCREEN), GetSystemMetrics(SM_CYVIRTUALSCREEN)) };
+        let half = (PINCH_HALF * scale.clamp(0.05, 12.0)) as i32;
+        let y = at.y.clamp(top + 2, top + h - 3);
+        let contact = |id: u32, x: i32| {
+            let x = x.clamp(left + 2, left + w - 3);
+            let mut c: POINTER_TOUCH_INFO = unsafe { std::mem::zeroed() };
+            c.pointerInfo.pointerType = PT_TOUCH;
+            c.pointerInfo.pointerId = id;
+            c.pointerInfo.pointerFlags = flags;
+            c.pointerInfo.ptPixelLocation = POINT { x, y };
+            c.touchMask = TOUCH_MASK_CONTACTAREA;
+            c.rcContact = RECT { left: x - 2, top: y - 2, right: x + 2, bottom: y + 2 };
+            c
+        };
+        let contacts = [contact(0, at.x - half), contact(1, at.x + half)];
+        unsafe { InjectTouchInput(2, contacts.as_ptr()) != 0 }
     }
 }

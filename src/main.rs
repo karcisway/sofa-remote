@@ -361,6 +361,15 @@ async fn handle_json(conn: &mut Conn, m: &Value) -> anyhow::Result<Option<Value>
         "mouse" => send(match str_field(m, "kind") {
             "move" => Cmd::Move { dx: clamp_i32(m, "dx"), dy: clamp_i32(m, "dy") },
             "scroll" => Cmd::Scroll { dy: clamp_i32(m, "dy"), dx: clamp_i32(m, "dx") },
+            "pinch" => Cmd::Pinch {
+                phase: match str_field(m, "phase") {
+                    "start" => input::Phase::Start,
+                    "end" => input::Phase::End,
+                    _ => input::Phase::Move,
+                },
+                scale: m.get("scale").and_then(Value::as_f64).unwrap_or(1.0) as f32,
+                wheel: clamp_i32(m, "wheel"),
+            },
             "click" => Cmd::Click(input::Click::Left),
             "dblclick" => Cmd::Click(input::Click::Double),
             "rclick" => Cmd::Click(input::Click::Right),

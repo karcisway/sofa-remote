@@ -683,7 +683,7 @@ const WIDGETS = {
     const rbtn = h('button', { class: 'pad-rclick', title: 'Right click', 'aria-label': 'Right click' }, 'R');
     // its own button: kept out of the pad's drag handling
     rbtn.addEventListener('pointerdown', e => { e.stopPropagation(); e.preventDefault(); navigator.vibrate?.(10); targetsOf(w, srv).forEach(s => s.send({ t: 'mouse', kind: 'rclick' })); });
-    const el = h('div', { class: 'pad' }, w.label ?? 'Drag to move · tap to click · hold for right click · tap then drag to hold the button', wheel, rbtn);
+    const el = h('div', { class: 'pad' }, w.label ?? 'Drag to move · tap to click · hold for right click · tap then drag to hold · 2 fingers: scroll, pinch to zoom, tap for right click · 3: swipe to switch apps', wheel, rbtn);
     const sens = w.sens ?? 2.2;
     const send = m => targetsOf(w, srv).forEach(s => s.send(m));
     let pid = null, lx = 0, ly = 0, lt = 0, speed = 0, moved = 0, ax = 0, ay = 0, scrolling = false, longPress = null, longDone = false;
@@ -700,7 +700,105 @@ const WIDGETS = {
       else if (dx || dy) { send({ t: 'mouse', kind: 'move', dx, dy }); ax -= dx; ay -= dy; }
     };
     const cancelLong = () => { clearTimeout(longPress); longPress = null; };
+
+    // Several fingers, like a laptop touchpad. Two: scroll (natural direction, both axes) or pinch
+    // to zoom (real touch zoom around the cursor on Windows, Ctrl + wheel elsewhere); a quick tap is a right click. Three: swipe left/right to switch apps,
+    // up for Task View, down for the desktop; a tap is a middle click. Four: left/right switches
+    // virtual desktop. Scroll or zoom is decided once the fingers have moved a little.
+    const pts = new Map();   // pointerId -> { x, y }, fingers on the pad (not the wheel)
+    let g = null;            // the gesture under way
+    const centre = () => {
+      let x = 0, y = 0;
+      for (const p of pts.values()) { x += p.x; y += p.y; }
+      return [x / pts.size, y / pts.size];
+    };
+    const spread = () => {
+      const [a, b] = pts.values();
+      return a && b ? Math.hypot(a.x - b.x, a.y - b.y) : 0;
+    };
+    const rebase = () => { [g.cx, g.cy] = centre(); g.dist = spread(); };
+    const SWIPES = {
+      3: { left: ['alt', 'shift', 'tab'], right: ['alt', 'tab'], up: ['win', 'tab'], down: ['win', 'd'] },
+      4: { left: ['ctrl', 'win', 'left'], right: ['ctrl', 'win', 'right'] },
+    };
+    const startGesture = () => {
+      cancelLong();
+      clearTimeout(tapTimer); tapTimer = null;
+      if (dragging) { dragging = false; send({ t: 'mbtn', b: 'left', down: false }); }
+      else if (moved >= 6) send({ t: 'mouse', kind: 'move_end' });
+      ax = ay = 0;
+      g = { n: pts.size, mode: null, t0: performance.now(), travel: 0, sx: 0, sy: 0, sd: 0, done: false };
+      rebase();
+    };
+    const gestureMove = () => {
+      const [cx, cy] = centre(), dist = spread();
+      const dx = cx - g.cx, dy = cy - g.cy, dd = dist - g.dist;
+      g.cx = cx; g.cy = cy; g.dist = dist;
+      g.travel += Math.abs(dx) + Math.abs(dy) + Math.abs(dd);
+      g.sx += dx; g.sy += dy; g.sd += dd;
+      if (g.n === 2) {
+        if (!g.mode) {
+          if (Math.abs(g.sd) > 16 && Math.abs(g.sd) > Math.abs(g.sx) + Math.abs(g.sy)) {
+            g.mode = 'zoom';
+            g.d0 = dist;
+            send({ t: 'mouse', kind: 'pinch', phase: 'start' });
+            // Windows drops injected touches that sit still too long: keep them alive
+            g.alive = setInterval(() => send({ t: 'mouse', kind: 'pinch', phase: 'move', scale: g.dist / g.d0, wheel: 0 }), 100);
+          } else if (Math.abs(g.sx) + Math.abs(g.sy) > 10) g.mode = 'scroll';
+          return;
+        }
+        if (g.mode === 'over') return;
+        if (g.mode === 'scroll') {
+          // natural scrolling: the page follows the fingers
+          ax += dx * sens * 3; ay += dy * sens * 3;
+          const sx = Math.trunc(ax), sy = Math.trunc(ay);
+          if (sx || sy) { send({ t: 'mouse', kind: 'scroll', dy: sy, dx: -sx }); ax -= sx; ay -= sy; }
+        } else {
+          // scale drives the PC's two injected fingers; wheel is for PCs that zoom with Ctrl + wheel
+          ay += dd * 4;
+          const z = Math.trunc(ay);
+          ay -= z;
+          send({ t: 'mouse', kind: 'pinch', phase: 'move', scale: dist / g.d0, wheel: z });
+        }
+      } else if (!g.done) {
+        const X = Math.abs(g.sx), Y = Math.abs(g.sy);
+        if (Math.max(X, Y) < 70) return;
+        const dir = X > Y ? (g.sx < 0 ? 'left' : 'right') : (g.sy < 0 ? 'up' : 'down');
+        const keys = SWIPES[Math.min(g.n, 4)][dir];
+        g.done = true;
+        if (keys) { send({ t: 'combo', keys }); navigator.vibrate?.(15); }
+      }
+    };
+    const endZoom = () => {
+      clearInterval(g.alive);
+      send({ t: 'mouse', kind: 'pinch', phase: 'end', scale: g.dist / g.d0 });
+      g.mode = 'over';
+    };
+    const endGesture = () => {
+      if (g.mode === 'zoom') endZoom();
+      else if (!g.mode && !g.done && g.travel < 20 && performance.now() - g.t0 < 350) {
+        send({ t: 'mouse', kind: g.n === 2 ? 'rclick' : 'mclick' });
+        navigator.vibrate?.(10);
+      }
+      g = null;
+    };
+    // A finger lifted mid-gesture: the others carry on from where they are; the gesture ends
+    // (and nothing else happens) once the last one is up.
+    const fingerUp = e => {
+      if (!pts.delete(e.pointerId) || !g) return false;
+      if (g.mode === 'zoom') endZoom();   // one finger left can't pinch
+      if (pts.size) rebase();
+      else { endGesture(); pid = null; }
+      return true;
+    };
+
     el.addEventListener('pointerdown', e => {
+      if (e.target !== wheel && !(pid !== null && scrolling)) {   // not while a finger is on the wheel
+        pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        try { el.setPointerCapture(e.pointerId); } catch {}
+        if (g) { g.n = Math.max(g.n, pts.size); rebase(); return; }
+        if (pts.size >= 2) return startGesture();
+      }
       if (pid !== null) return;
       pid = e.pointerId;
       try { el.setPointerCapture(pid); } catch {}
@@ -723,6 +821,9 @@ const WIDGETS = {
       }, 500);
     });
     el.addEventListener('pointermove', e => {
+      const p = pts.get(e.pointerId);
+      if (p) { p.x = e.clientX; p.y = e.clientY; }
+      if (g) return p && gestureMove();
       if (e.pointerId !== pid) return;
       const dx = e.clientX - lx, dy = e.clientY - ly;
       const dt = Math.max(e.timeStamp - lt, 4);
@@ -737,7 +838,7 @@ const WIDGETS = {
       flush();
     });
     el.addEventListener('pointerup', e => {
-      if (e.pointerId !== pid) return;
+      if (fingerUp(e) || e.pointerId !== pid) return;
       cancelLong();
       if (!scrolling && moved >= 6) send({ t: 'mouse', kind: 'move_end' });   // resend the final position reliably
       if (dragging) {
@@ -749,7 +850,8 @@ const WIDGETS = {
       }
       pid = null;
     });
-    el.addEventListener('pointercancel', () => {
+    el.addEventListener('pointercancel', e => {
+      if (fingerUp(e)) return;
       cancelLong();
       if (dragging) { dragging = false; send({ t: 'mbtn', b: 'left', down: false }); }
       pid = null;
