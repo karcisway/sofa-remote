@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add Finer grid / Coarser grid buttons to the layout editor (up to 48 columns and rows), so widgets can be placed
+  more precisely without changing their size. Rework the built-in gamepad layout to use them.
 - Add power buttons: shut down, restart, sleep, hibernate, lock, sign out and screen off, as the
   `power` action. Needs the PC server updated.
 - Add hold-to-confirm for buttons (tick it in the button editor, any hold time): a tint fills the

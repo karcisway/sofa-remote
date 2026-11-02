@@ -1052,7 +1052,7 @@
           "type": "button",
           "x": 0,
           "y": 0,
-          "w": 3,
+          "w": 4,
           "h": 1,
           "icon": "LT",
           "action": {
@@ -1061,9 +1061,9 @@
         },
         {
           "type": "button",
-          "x": 3,
+          "x": 4,
           "y": 0,
-          "w": 3,
+          "w": 4,
           "h": 1,
           "icon": "LB",
           "action": {
@@ -1072,10 +1072,32 @@
         },
         {
           "type": "button",
-          "x": 8,
+          "x": 16,
           "y": 0,
-          "w": 2,
+          "w": 4,
           "h": 1,
+          "icon": "RB",
+          "action": {
+            "pad": "rb"
+          }
+        },
+        {
+          "type": "button",
+          "x": 20,
+          "y": 0,
+          "w": 4,
+          "h": 1,
+          "icon": "RT",
+          "action": {
+            "pad": "rt"
+          }
+        },
+        {
+          "type": "button",
+          "x": 8,
+          "y": 1,
+          "w": 2,
+          "h": 2,
           "icon": "Back",
           "style": "dark",
           "action": {
@@ -1084,10 +1106,10 @@
         },
         {
           "type": "button",
-          "x": 11,
-          "y": 0,
-          "w": 2,
-          "h": 1,
+          "x": 10,
+          "y": 1,
+          "w": 4,
+          "h": 2,
           "icon": "Home",
           "style": "dark",
           "action": {
@@ -1097,9 +1119,9 @@
         {
           "type": "button",
           "x": 14,
-          "y": 0,
+          "y": 1,
           "w": 2,
-          "h": 1,
+          "h": 2,
           "icon": "Start",
           "style": "dark",
           "action": {
@@ -1108,30 +1130,52 @@
         },
         {
           "type": "button",
-          "x": 18,
-          "y": 0,
-          "w": 3,
-          "h": 1,
-          "icon": "RB",
+          "x": 0,
+          "y": 1,
+          "w": 2,
+          "h": 3,
+          "icon": "lucide:chevron-left",
           "action": {
-            "pad": "rb"
+            "pad": "left"
           }
         },
         {
           "type": "button",
-          "x": 21,
-          "y": 0,
-          "w": 3,
-          "h": 1,
-          "icon": "RT",
+          "x": 2,
+          "y": 1,
+          "w": 2,
+          "h": 3,
+          "icon": "lucide:chevron-up",
           "action": {
-            "pad": "rt"
+            "pad": "up"
+          }
+        },
+        {
+          "type": "button",
+          "x": 4,
+          "y": 1,
+          "w": 2,
+          "h": 3,
+          "icon": "lucide:chevron-down",
+          "action": {
+            "pad": "down"
+          }
+        },
+        {
+          "type": "button",
+          "x": 6,
+          "y": 1,
+          "w": 2,
+          "h": 3,
+          "icon": "lucide:chevron-right",
+          "action": {
+            "pad": "right"
           }
         },
         {
           "type": "joystick",
           "x": 0,
-          "y": 1,
+          "y": 4,
           "w": 8,
           "h": 4,
           "label": "Left stick",
@@ -1140,54 +1184,10 @@
         },
         {
           "type": "button",
-          "x": 3,
-          "y": 5,
-          "w": 2,
-          "h": 1,
-          "icon": "lucide:chevron-up",
-          "action": {
-            "pad": "up"
-          }
-        },
-        {
-          "type": "button",
-          "x": 1,
-          "y": 6,
-          "w": 2,
-          "h": 1,
-          "icon": "lucide:chevron-left",
-          "action": {
-            "pad": "left"
-          }
-        },
-        {
-          "type": "button",
-          "x": 5,
-          "y": 6,
-          "w": 2,
-          "h": 1,
-          "icon": "lucide:chevron-right",
-          "action": {
-            "pad": "right"
-          }
-        },
-        {
-          "type": "button",
-          "x": 3,
-          "y": 7,
-          "w": 2,
-          "h": 1,
-          "icon": "lucide:chevron-down",
-          "action": {
-            "pad": "down"
-          }
-        },
-        {
-          "type": "button",
           "x": 8,
-          "y": 6,
-          "w": 3,
-          "h": 1,
+          "y": 3,
+          "w": 4,
+          "h": 5,
           "icon": "L3",
           "style": "dark",
           "action": {
@@ -1196,10 +1196,10 @@
         },
         {
           "type": "button",
-          "x": 13,
-          "y": 6,
-          "w": 3,
-          "h": 1,
+          "x": 12,
+          "y": 3,
+          "w": 4,
+          "h": 5,
           "icon": "R3",
           "style": "dark",
           "action": {
@@ -1207,23 +1207,21 @@
           }
         },
         {
-          "type": "button",
-          "x": 19,
+          "type": "joystick",
+          "x": 16,
           "y": 1,
-          "w": 2,
-          "h": 1,
-          "icon": "Y",
-          "color": "#b8901a",
-          "action": {
-            "pad": "y"
-          }
+          "w": 8,
+          "h": 4,
+          "label": "Right stick",
+          "mode": "pad",
+          "stick": "right"
         },
         {
           "type": "button",
-          "x": 17,
-          "y": 2,
+          "x": 16,
+          "y": 5,
           "w": 2,
-          "h": 1,
+          "h": 3,
           "icon": "X",
           "color": "#2f63c0",
           "action": {
@@ -1232,22 +1230,10 @@
         },
         {
           "type": "button",
-          "x": 21,
-          "y": 2,
+          "x": 18,
+          "y": 5,
           "w": 2,
-          "h": 1,
-          "icon": "B",
-          "color": "#b53229",
-          "action": {
-            "pad": "b"
-          }
-        },
-        {
-          "type": "button",
-          "x": 19,
-          "y": 3,
-          "w": 2,
-          "h": 1,
+          "h": 3,
           "icon": "A",
           "color": "#2a8a45",
           "action": {
@@ -1255,14 +1241,28 @@
           }
         },
         {
-          "type": "joystick",
-          "x": 16,
-          "y": 4,
-          "w": 8,
-          "h": 4,
-          "label": "Right stick",
-          "mode": "pad",
-          "stick": "right"
+          "type": "button",
+          "x": 20,
+          "y": 5,
+          "w": 2,
+          "h": 3,
+          "icon": "Y",
+          "color": "#b8901a",
+          "action": {
+            "pad": "y"
+          }
+        },
+        {
+          "type": "button",
+          "x": 22,
+          "y": 5,
+          "w": 2,
+          "h": 3,
+          "icon": "B",
+          "color": "#b53229",
+          "action": {
+            "pad": "b"
+          }
         }
       ]
     }

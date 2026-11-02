@@ -1443,10 +1443,10 @@ function openLayoutSheet(layout) {
   const { srv, draft } = app.edit;
   const name = h('input', { value: layout.name || '' });
   const icon = h('input', { value: layout.icon || '', placeholder: 'pick one, or an emoji' });
-  const cols = h('input', { type: 'number', min: 1, max: 24, value: layout.cols || 12 });
+  const cols = h('input', { type: 'number', min: 1, max: 48, value: layout.cols || 12 });
   const rowHeight = h('input', { type: 'number', min: 30, max: 300, value: layout.rowHeight || 64 });
   const fit = h('input', { type: 'checkbox', checked: !!layout.fit });
-  const rows = h('input', { type: 'number', min: 1, max: 24, value: layout.rows || 6 });
+  const rows = h('input', { type: 'number', min: 1, max: 48, value: layout.rows || 6 });
   const landscape = h('input', { type: 'checkbox', checked: !!layout.landscape });
   const overlap = h('input', { type: 'checkbox', checked: !!layout.allowOverlap });
   const idx = draft.layouts.indexOf(layout);
@@ -1456,6 +1456,19 @@ function openLayoutSheet(layout) {
     [draft.layouts[idx], draft.layouts[j]] = [draft.layouts[j], draft.layouts[idx]];
     closeSheet(); app.render();
   };
+  // Split every cell (or merge pairs of cells) so widgets keep their size but can be placed more finely
+  const regrid = f => {
+    const c = (layout.cols || 12) * f, r = (layout.rows || 6) * f;
+    const widgets = layout.widgets || [];
+    const scaled = w => ({ x: w.x, y: w.y, w: w.w || 1, h: w.h || 1 });
+    const whole = [c, layout.fit ? r : 2, ...widgets.flatMap(w => Object.values(scaled(w)).filter(v => v != null).map(v => v * f))].every(Number.isInteger);
+    if (!whole) return app.status('Can’t merge cells: some widgets sit on odd grid lines', true);
+    if (c > 48 || r > 48 || c < 1) return app.status(f > 1 ? 'Grid is already as fine as it goes' : 'Grid is already as coarse as it goes', true);
+    layout.cols = c;
+    if (layout.fit) layout.rows = r; else layout.rowHeight = Math.max(30, Math.round((layout.rowHeight || 64) / f));
+    for (const w of widgets) for (const [k, v] of Object.entries(scaled(w))) if (v != null) w[k] = v * f;
+    closeSheet(); app.render();
+  };
   const body = h('div', { style: 'display:flex;flex-direction:column;gap:10px' },
     field('Name', name), field('Tab icon', iconPicker(icon)),
     h('div', { class: 'pair' }, field('Columns', cols), field('Row height (px)', rowHeight)),
@@ -1463,6 +1476,7 @@ function openLayoutSheet(layout) {
     field('Rows when fitting', rows),
     check('Landscape: rotate when going fullscreen', landscape),
     check('Allow widgets to overlap (otherwise moving one pushes the others aside)', overlap),
+    h('div', { class: 'pair' }, sheetBtn('Finer grid', () => regrid(2), 'small'), sheetBtn('Coarser grid', () => regrid(1 / 2), 'small')),
     h('div', { class: 'pair' }, sheetBtn('◀ Move tab left', () => move(-1), 'small'), sheetBtn('Move tab right ▶', () => move(1), 'small')),
     h('div', { class: 'pair' },
       sheetBtn('+ New blank layout', () => {
