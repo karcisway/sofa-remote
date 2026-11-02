@@ -1,8 +1,8 @@
 //! Sofa Remote: control a PC (Windows, Linux X11, macOS) from a phone browser.
 //!
 //! Run `sofa-remote [--port 8765] [--name "Living room"] [--new-key] [--data DIR]` and open the
-//! printed link on the phone. The web app is embedded in the binary; layouts, the access key and
-//! layouts.json live next to the executable (or in --data DIR).
+//! printed link on the phone. The web app is embedded in the binary; the access key, layouts and
+//! other settings live in .config-sofa-remote next to the executable (or in --data DIR).
 
 mod admin;
 mod focus;
@@ -13,6 +13,7 @@ mod power;
 #[cfg(feature = "webrtc")]
 mod rtc;
 mod session;
+mod settings;
 mod wake;
 
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
@@ -33,7 +34,6 @@ use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
 
 const COOKIE_NAME: &str = "remote_token";
-const DEFAULT_LAYOUTS: &str = include_str!("../default_layouts.json");
 const ASSETS: &[(&str, &str, &str)] = &[
     ("index.html", "text/html; charset=utf-8", include_str!("../web/index.html")),
     ("app.js", "text/javascript; charset=utf-8", include_str!("../web/app.js")),
@@ -135,21 +135,12 @@ async fn ws_upgrade(State(app): State<Shared>, ConnectInfo(peer): ConnectInfo<So
 
 // ------------------------------------------------------------------ layouts config
 
-fn layouts_path(app: &App) -> PathBuf {
-    app.data_dir.join("layouts.json")
-}
-
 fn load_config(app: &App) -> anyhow::Result<Value> {
-    let text = std::fs::read_to_string(layouts_path(app)).unwrap_or_else(|_| DEFAULT_LAYOUTS.to_string());
-    Ok(serde_json::from_str(&text)?)
+    settings::layouts(&app.data_dir)
 }
 
 fn save_config(app: &App, config: &Value) -> anyhow::Result<()> {
-    anyhow::ensure!(config.get("layouts").is_some_and(Value::is_array), "config must be an object with a 'layouts' list");
-    let tmp = app.data_dir.join("layouts.json.tmp");
-    std::fs::write(&tmp, serde_json::to_vec_pretty(config)?)?;
-    std::fs::rename(tmp, layouts_path(app))?;
-    Ok(())
+    settings::set_layouts(&app.data_dir, config)
 }
 
 fn broadcast(app: &App, except: u64, msg: &Value) {
@@ -435,8 +426,7 @@ async fn handle_json(conn: &mut Conn, m: &Value) -> anyhow::Result<Option<Value>
         "config_reset" => {
             let config = {
                 let _g = app.config_lock.lock().await;
-                let _ = std::fs::remove_file(layouts_path(app));
-                load_config(app)?
+                settings::reset_layouts(&app.data_dir)?
             };
             broadcast(app, conn.id, &json!({ "t": "config", "config": config }));
             reply["config"] = config;
@@ -585,18 +575,7 @@ async fn main() -> anyhow::Result<()> {
         None => std::env::current_exe()?.parent().map(PathBuf::from).unwrap_or_else(|| ".".into()),
     };
     std::fs::create_dir_all(&data_dir)?;
-    let token_file = data_dir.join(".remote_token");
-    if args.new_key {
-        let _ = std::fs::remove_file(&token_file);
-    }
-    let token = match std::fs::read_to_string(&token_file) {
-        Ok(t) if !t.trim().is_empty() => t.trim().to_string(),
-        _ => {
-            let t = random_token();
-            std::fs::write(&token_file, &t)?;
-            t
-        }
-    };
+    let token = settings::token(&data_dir, args.new_key, random_token)?;
 
     // Chosen earlier on a phone: ask for administrator rights again. Refusing just goes on without.
     if admin::SUPPORTED && admin::wanted(&data_dir) && !admin::elevated() && !args.restarted && !args.no_elevate {
@@ -655,8 +634,8 @@ async fn main() -> anyhow::Result<()> {
     println!("\nSofa Remote {} '{}' running. Open on your phone (same Wi-Fi),", env!("CARGO_PKG_VERSION"), app.name);
     println!("or add it under the device menu on a phone already using another PC:\n\n  {url}\n");
     print_qr(&url);
-    let source = if layouts_path(&app).exists() { "layouts.json" } else { "built-in default" };
-    println!("Layouts: {source} (in {}). Ctrl+C to stop.", app.data_dir.display());
+    let source = if settings::has_layouts(&app.data_dir) { "saved" } else { "built-in default" };
+    println!("Settings: {} (layouts: {source}). Ctrl+C to stop.", settings::path(&app.data_dir).display());
     #[cfg(windows)]
     if !gamepad::driver::installed() {
         println!("Gamepads: the ViGEmBus driver isn't installed yet. It installs the first time a phone uses a");

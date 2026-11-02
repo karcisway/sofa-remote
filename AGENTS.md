@@ -12,7 +12,7 @@
   ("Add pink Bubblegum theme"), not how ("Update app.css"). Use the body for the why and
   anything non-obvious.
 - Don't mix refactors or formatting with behaviour changes; give them their own commit.
-- Never commit built binaries, `release/` contents, keys (`.remote_token`, `*.keystore`) or
+- Never commit built binaries, `release/` contents, keys (`.config-sofa-remote`, `.remote_token`, `*.keystore`) or
   `layouts.json`.
 
 ## Releases

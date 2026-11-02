@@ -11,6 +11,7 @@
 .remote_token
 layouts.json
 layouts.json.tmp
+.config-sofa-remote*
 
 # Android
 android/.gradle/

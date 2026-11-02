@@ -3,24 +3,15 @@
 //! restart with a permission prompt on the PC. That choice is remembered, so the next start asks
 //! again by itself.
 
-use std::path::{Path, PathBuf};
-
-fn pref_file(data_dir: &Path) -> PathBuf {
-    data_dir.join(".remote_admin")
-}
+use std::path::Path;
 
 /// Did the user choose to run as administrator?
 pub fn wanted(data_dir: &Path) -> bool {
-    pref_file(data_dir).exists()
+    crate::settings::admin(data_dir)
 }
 
 pub fn set_wanted(data_dir: &Path, wanted: bool) {
-    let file = pref_file(data_dir);
-    if wanted {
-        let _ = std::fs::write(file, "1");
-    } else {
-        let _ = std::fs::remove_file(file);
-    }
+    crate::settings::set_admin(data_dir, wanted);
 }
 
 /// Flags that only this feature uses; they aren't passed on to the restarted program.

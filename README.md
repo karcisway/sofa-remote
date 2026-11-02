@@ -31,7 +31,7 @@ sofa-remote [--port 8765] [--name "Living room"] [--data DIR] [--new-key] [--no-
 | --- | --- |
 | `--port` | HTTP port (default 8765) |
 | `--name` | Name shown on the phone (default: the computer name) |
-| `--data DIR` | Where `layouts.json` and `.remote_token` live (default: next to the executable) |
+| `--data DIR` | Where `.config-sofa-remote` lives (default: next to the executable) |
 | `--new-key` | Make a new access key; phones have to scan the new link |
 | `--no-focus` | Don't open the phone keyboard by itself when a PC text field gets focus |
 | `--install-driver` | Windows: install the gamepad driver now and exit (see [Gamepads](#gamepads)) |
@@ -217,12 +217,11 @@ Next to the executable (or in `--data`) at runtime:
 
 | File | What it is |
 | --- | --- |
-| `layouts.json` | This PC's own layouts. Created when you save from the phone; overrides the default. Delete it (or JSON › Reset) to go back |
-| `.remote_token` | Access key. `--new-key` replaces it |
+| `.config-sofa-remote` | All settings, as JSON you can edit (stop the server first): `token` (access key, `--new-key` replaces it), `admin` (ask for administrator rights at start), and `layouts` once you save your own from the phone. JSON › Reset removes `layouts` to go back to the default. Built-in tabs added by a newer version are added to saved layouts; tabs you deleted stay deleted. Older `layouts.json`, `.remote_token` and `.remote_admin` files are moved into it on first start |
 
 ## Layouts
 
-Edit layouts on the phone (✎), or write the JSON yourself (✎ › JSON, or edit `layouts.json`).
+Edit layouts on the phone (✎), or write the JSON yourself (✎ › JSON, or edit `layouts` in `.config-sofa-remote`).
 
 ```json
 {
