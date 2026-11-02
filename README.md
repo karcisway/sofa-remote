@@ -211,7 +211,6 @@ To sign the APK in CI, add the repository secrets `ANDROID_KEYSTORE` (the keysto
 | `brand/` | Logo, icons, colours and type ([brand guide](brand/README.md)) |
 | `vendor/fetch.ps1`, `build.rs` | Bundle the ViGEmBus installer into the Windows exe (`vendor/LICENSE-ViGEmBus.txt`) |
 | `web/icons.svg`, `web/icon-tags.json` | Lucide icon sprite and search words (ISC, `web/LICENSE-lucide.txt`) |
-| `legacy/remote.py` | The old Python server. It no longer matches the current web app |
 
 Next to the executable (or in `--data`) at runtime:
 
@@ -242,7 +241,7 @@ In scrolling layouts widgets float up as you move, add or delete them, so no emp
 Fit-screen layouts keep widgets exactly where you put them.
 
 **Layout fields:** `icon` is the emoji shown on the tab when names don't fit. `allowOverlap: true`
-stops widgets pushing each other aside in the editor. `cols` sets the grid width. `rowHeight` is
+stops widgets pushing each other aside in the editor. `cols` sets the grid width (up to 48; the layout editor can split or merge the grid). `rowHeight` is
 in px. `fit: true` + `rows` makes a fixed grid that fills the screen (good for gamepads).
 `landscape: true` rotates the screen in fullscreen.
 
