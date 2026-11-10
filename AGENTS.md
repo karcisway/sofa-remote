@@ -51,4 +51,6 @@ didn't change:
 - Android app: `android/` (Kotlin, WebView around the phone app). `./gradlew assembleRelease`
   copies the APK to `release/`.
 - Everything into `release/`: `release.ps1` (Windows) or `release.sh`.
+- Windows shortcuts: `cli build | start | dev | stop | test | apk | all | version | release X.Y.Z`
+  (`cli.bat` runs `cli.ps1`; `cli release` bumps, tests, builds the APK, then asks before pushing).
 - Landing page: `docs/` (GitHub Pages). Brand assets and guide: `brand/`.
