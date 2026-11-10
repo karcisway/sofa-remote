@@ -50,6 +50,8 @@ pub enum Cmd {
     Combo(Vec<u16>),
     Text { text: String, backspaces: u32 },
     Move { dx: i32, dy: i32 },
+    /// Put the pointer at a screen position (coordinates as in screen.rs).
+    MoveTo { x: i32, y: i32 },
     Button { button: Button, down: bool },
     Click(Click),
     /// Wheel units: 120 per notch, positive = up/right (Windows convention).
@@ -71,6 +73,7 @@ pub trait Platform {
     fn key(&mut self, vk: u16, down: bool);
     fn text(&mut self, text: &str);
     fn move_rel(&mut self, dx: i32, dy: i32);
+    fn move_abs(&mut self, x: i32, y: i32);
     fn button(&mut self, button: Button, down: bool);
     fn scroll(&mut self, dy: i32, dx: i32);
     fn pinch(&mut self, phase: Phase, _scale: f32, wheel: i32) {
@@ -122,6 +125,7 @@ fn run(backend: &mut impl Platform, cmd: Cmd) {
             }
         }
         Cmd::Move { dx, dy } => backend.move_rel(dx, dy),
+        Cmd::MoveTo { x, y } => backend.move_abs(x, y),
         Cmd::Button { button, down } => backend.button(button, down),
         Cmd::Click(kind) => {
             let (button, times) = match kind {

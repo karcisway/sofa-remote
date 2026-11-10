@@ -576,7 +576,15 @@ const WIDGET_TYPES = {
   clipboard: { name: 'Clipboard', size: [12, 5] },
   lockscreen: { name: 'Lock-screen controls', size: [12, 1] },
   label: { name: 'Text label', size: [12, 1] },
+  screen: { name: 'Screen (see and use the PC)', size: [12, 6] },
 };
+
+// Hardware keyboard keys (KeyboardEvent.key) to key names, for the screen widget
+const SCREEN_KEYS = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down', Enter: 'enter', Escape: 'esc',
+  Backspace: 'backspace', Tab: 'tab', Delete: 'del', Insert: 'ins', Home: 'home', End: 'end', PageUp: 'pgup', PageDown: 'pgdn',
+  ' ': 'space', CapsLock: 'capslock', ContextMenu: 'menu', PrintScreen: 'printscreen', Pause: 'pause',
+  AudioVolumeUp: 'volup', AudioVolumeDown: 'voldown', AudioVolumeMute: 'mute', MediaPlayPause: 'playpause',
+  MediaTrackNext: 'next', MediaTrackPrevious: 'prev' };
 
 const WIDGETS = {
   button(w, srv) {
@@ -858,6 +866,380 @@ const WIDGETS = {
       if (dragging) { dragging = false; send({ t: 'mbtn', b: 'left', down: false }); }
       pid = null;
     });
+    return el;
+  },
+
+  // The PC's screen as snapshots (no video stream), fetched one after another while you use it and
+  // about once a second otherwise. Touchpad mode: drag anywhere to move the pointer, tap to click,
+  // tap then drag to hold the button, hold for a right click. Direct mode: tap or drag right where
+  // you want it. Two fingers: drag to scroll the PC, pinch to zoom the picture (moving them while
+  // pinching pans it; zoomed in, it also follows the pointer). A mouse or keyboard on the phone
+  // (or a computer's browser) goes to the PC.
+  screen(w, srv) {
+    const target = () => targetsOf(w, srv)[0] || srv;
+    const img = h('img', { alt: '', draggable: 'false' });
+    const cur = h('div', { class: 'scr-cursor', hidden: true });
+    const stage = h('div', { class: 'scr-stage' }, img, cur);
+    const msg = h('div', { class: 'scr-msg' }, 'Loading the screen…');
+    const mons = h('div', { class: 'scr-mons' });
+    const btn = (icon, title, onclick) => h('button', { type: 'button', class: 'scr-btn', title, 'aria-label': title, onclick }, iconEl(icon));
+    const fitBtn = btn('lucide:zoom-out', 'Zoom out', () => { z = 1; layoutStage(); schedule(0); });
+    const modeBtn = h('button', { type: 'button', class: 'scr-btn', onclick: () => {
+      mode = mode === 'direct' ? 'touchpad' : 'direct';
+      store.set('screenMode', mode);
+      renderMode();
+      app.status(mode === 'direct' ? 'Direct: tap or drag right where you want it' : 'Touchpad: drag to move the pointer, tap to click');
+    } });
+    const kb = h('div', { class: 'scr-kb', hidden: true }, WIDGETS.keyboard({ label: 'Type on the PC', server: w.server }, srv));
+    const kbBtn = btn('lucide:keyboard', 'Keyboard', () => {
+      kb.hidden = !kb.hidden;
+      if (kb.hidden) return document.activeElement?.blur();
+      $('input', kb).focus({ preventScroll: true });
+      window.SofaAndroid?.showKeyboard?.();
+    });
+    // Zoomed in: the picture pans by itself to keep the pointer in view (like AnyDesk)
+    let followOn = store.get('screenFollow', w.follow ?? true);
+    const followBtn = btn('lucide:locate-fixed', 'Follow the pointer', () => {
+      followOn = !followOn;
+      store.set('screenFollow', followOn);
+      followBtn.classList.toggle('on', followOn);
+      app.status(followOn ? 'The picture follows the pointer' : 'The picture stays where you put it');
+      follow();
+    });
+    followBtn.classList.toggle('on', followOn);
+    fitBtn.hidden = followBtn.hidden = true;
+    const el = h('div', { class: 'scr' }, stage, msg, h('div', { class: 'scr-bar' }, mons, h('span', { class: 'grow' }), followBtn, fitBtn, modeBtn, kbBtn), kb);
+
+    const monKey = 'screenMon:' + srv.id;
+    let mon = store.get(monKey, 0), mode = store.get('screenMode', w.mode || 'touchpad');
+    let screens = [], loadingScreens = false;   // [{ w, h, primary }] from the PC
+    let z = 1, ox = 0, oy = 0, aspect = 16 / 9;   // the picture's zoom and position (only on the phone)
+    let bw = 0, bh = 0;                            // picture size at zoom 1
+    let cursor = null, predictUntil = 0;          // pointer spot (0 to 1); ours while we move it, else the PC's
+    let lastInput = -Infinity, timer = 0, due = Infinity, stopped = false, url = null;
+
+    // Picture fitted into the widget, then zoomed around (ox, oy); never panned past its edges
+    const layoutStage = () => {
+      const W = el.clientWidth, H = el.clientHeight;
+      if (!W || !H) return;
+      bw = Math.min(W, H * aspect); bh = bw / aspect;
+      const sw = bw * z, sh = bh * z;
+      ox = sw <= W ? (W - sw) / 2 : clamp(ox, W - sw, 0);
+      oy = sh <= H ? (H - sh) / 2 : clamp(oy, H - sh, 0);
+      Object.assign(stage.style, { width: bw + 'px', height: bh + 'px', transform: `translate(${ox}px, ${oy}px) scale(${z})` });
+      stage.style.setProperty('--z', z);
+      fitBtn.hidden = followBtn.hidden = z <= 1.01;
+    };
+    // Pan so the pointer stays at least 15% inside the edges (touchpad mode: in direct mode it is under the finger)
+    const follow = () => {
+      if (!followOn || z <= 1.01 || !cursor || g || mode === 'direct') return;
+      const W = el.clientWidth, H = el.clientHeight, mx = W * 0.15, my = H * 0.15;
+      const px = ox + cursor[0] * bw * z, py = oy + cursor[1] * bh * z;
+      const nx = ox + (px < mx ? mx - px : px > W - mx ? W - mx - px : 0);
+      const ny = oy + (py < my ? my - py : py > H - my ? H - my - py : 0);
+      if (nx !== ox || ny !== oy) { ox = nx; oy = ny; layoutStage(); }
+    };
+    const setCursor = c => { cursor = c; showCursor(); follow(); };
+    const ro = new ResizeObserver(layoutStage);
+    ro.observe(el);
+    // No snapshots while the widget is out of sight (scrolled away); back at once when it returns
+    let visible = true;
+    const io = new IntersectionObserver(([e]) => { visible = e.isIntersecting; if (visible) schedule(0); });
+    io.observe(el);
+    const showCursor = () => {
+      cur.hidden = !cursor;
+      if (cursor) Object.assign(cur.style, { left: cursor[0] * 100 + '%', top: cursor[1] * 100 + '%' });
+    };
+    const norm = (x, y) => {
+      const r = stage.getBoundingClientRect();
+      return [clamp((x - r.left) / r.width, 0, 1), clamp((y - r.top) / r.height, 0, 1)];
+    };
+    const renderMode = () => {
+      const direct = mode === 'direct';
+      modeBtn.replaceChildren(iconEl(direct ? 'lucide:pointer' : 'lucide:mouse-pointer-2'), h('span', {}, direct ? 'Direct' : 'Touchpad'));
+      modeBtn.title = direct ? 'Direct: taps click where you tap (tap to switch to touchpad)' : 'Touchpad: drag to move the pointer (tap to switch to direct)';
+    };
+    const renderMons = () => mons.replaceChildren(...(screens.length > 1 ? screens.map((m, i) =>
+      h('button', { type: 'button', class: 'scr-btn' + (i === mon ? ' on' : ''), title: `Monitor ${i + 1}: ${m.w}×${m.h}${m.primary ? ' (main)' : ''}`,
+        onclick: () => pickMonitor(i) }, iconEl('lucide:monitor'), h('span', {}, String(i + 1)))) : []));
+    const loadScreens = () => {
+      if (loadingScreens) return;
+      loadingScreens = true;
+      target().request({ t: 'screens' })
+        .then(r => { screens = r.screens || []; if (mon >= screens.length) mon = 0; renderMons(); })
+        .catch(() => {})
+        .finally(() => (loadingScreens = false));
+    };
+    const pickMonitor = i => {
+      mon = i;
+      store.set(monKey, i);
+      z = 1;
+      cursor = null;
+      renderMons();
+      showCursor();
+      layoutStage();
+      if (mode === 'touchpad') {   // bring the pointer along
+        sendJson({ t: 'mouse', kind: 'to', m: i, x: 0.5, y: 0.5 });
+        predictUntil = performance.now() + 400;
+        setCursor([0.5, 0.5]);
+      }
+      schedule(0);
+    };
+
+    // Snapshots: one at a time, back to back while in use, then about once a second
+    const schedule = ms => {
+      const at = performance.now() + ms;
+      if (at >= due) return;
+      clearTimeout(timer);
+      due = at;
+      timer = setTimeout(() => { due = Infinity; frame(); }, ms);
+    };
+    let busy = false;
+    const frame = async () => {
+      if (stopped || busy) return;
+      if (!el.isConnected) return stop();
+      const s = target();
+      if (document.hidden || !visible || !s.online) return schedule(700);
+      if (!screens.length) loadScreens();
+      busy = true;
+      try {
+        const dpr = devicePixelRatio || 1, r = el.getBoundingClientRect();
+        const mw = Math.round(clamp(r.width * dpr * z, 320, 2560)), mh = Math.round(clamp(r.height * dpr * z, 240, 2560));
+        const res = await fetch(`${s.url}/api/screen?k=${encodeURIComponent(s.key)}&m=${mon}&w=${mw}&h=${mh}&q=${w.quality ?? 60}`, { cache: 'no-store' });
+        if (!res.ok) throw new Error((await res.text()) || 'HTTP ' + res.status);
+        const c = (res.headers.get('x-cursor') || '').split(',').map(Number);
+        const next = URL.createObjectURL(await res.blob());
+        img.src = next;
+        await img.decode();
+        if (url) URL.revokeObjectURL(url);
+        url = next;
+        const a = img.naturalWidth / img.naturalHeight;
+        if (a && Math.abs(a - aspect) > 0.002) { aspect = a; layoutStage(); }
+        if (performance.now() > predictUntil) setCursor(c.length === 2 && c.every(Number.isFinite) ? c : null);
+        msg.hidden = true;
+      } catch (e) {
+        if (stopped) return;
+        msg.hidden = false;
+        msg.textContent = `${s.label}: ${e.message === 'Failed to fetch' ? 'can’t reach the PC' : e.message}`;
+      } finally { busy = false; }
+      if (!stopped) schedule(performance.now() - lastInput < 4000 ? 20 : (w.interval ?? 1000));
+    };
+    const poke = () => { lastInput = performance.now(); schedule(busy ? 20 : 60); };
+
+    // The real pointer position, asked for 25 times a second while in use (snapshots are slower),
+    // so the dot shows where the pointer really is, also when someone moves it at the PC
+    const pollCursor = async () => {
+      if (stopped) return;
+      if (!el.isConnected) return stop();
+      const s = target(), inUse = performance.now() - lastInput < 1500;
+      if (inUse && visible && !document.hidden && s.online) {
+        try {
+          const r = await s.request({ t: 'cursor' }, 2000);
+          if (!stopped && performance.now() > predictUntil) setCursor(r.m === mon ? [r.x, r.y] : null);
+        } catch {}
+      }
+      if (!stopped) setTimeout(pollCursor, inUse ? 40 : 300);
+    };
+
+    // Inputs. Pointer positions are JSON, so clicks and buttons are too: one sent as a binary
+    // packet (maybe over WebRTC) could get to the PC before the position that goes first.
+    const send = m => { targetsOf(w, srv).forEach(s => s.send(m)); poke(); };
+    const sendJson = m => {
+      for (const s of targetsOf(w, srv)) if (s.online) { app.noteActivity(); s.ws.send(JSON.stringify(m)); }
+      poke();
+    };
+    const moveTo = (x, y) => {
+      cursor = norm(x, y);
+      predictUntil = performance.now() + 400;
+      showCursor();
+      sendJson({ t: 'mouse', kind: 'to', m: mon, x: +cursor[0].toFixed(5), y: +cursor[1].toFixed(5) });
+    };
+
+    const pts = new Map();   // touching fingers: pointerId -> { x, y }
+    let one = null, g = null, lastTap = 0, ax = 0, ay = 0;
+    const centre = () => {
+      let x = 0, y = 0;
+      for (const p of pts.values()) { x += p.x; y += p.y; }
+      return [x / pts.size, y / pts.size];
+    };
+    const spread = () => { const [a, b] = pts.values(); return a && b ? Math.hypot(a.x - b.x, a.y - b.y) : 0; };
+    const rebase = () => { [g.cx, g.cy] = centre(); g.dist = spread(); g.n = Math.max(g.n, pts.size); };
+    const dropOne = (click = false) => {
+      if (!one) return;
+      const o = one;
+      one = null;
+      clearTimeout(o.long);
+      activeReleases.delete(dropOne);
+      if (o.done) return;
+      const direct = mode === 'direct';
+      if (!direct && o.moved >= 6) send({ t: 'mouse', kind: 'move_end' });
+      if (o.held) sendJson({ t: 'mbtn', b: 'left', down: false });
+      else if (click && o.moved < (direct ? 8 : 6)) {
+        sendJson({ t: 'mouse', kind: 'click' });
+        lastTap = performance.now();
+      }
+    };
+
+    const startOne = e => {
+      one = { id: e.pointerId, moved: 0, held: false, done: false, long: 0 };
+      activeReleases.add(dropOne);
+      if (mode === 'direct') moveTo(e.clientX, e.clientY);
+      else if (performance.now() - lastTap < 250) {   // tap then drag: hold the button
+        one.held = true;
+        sendJson({ t: 'mbtn', b: 'left', down: true });
+        vibrate(10);
+      }
+      ax = ay = 0;
+      one.long = setTimeout(() => {   // hold still: right click
+        if (!one || one.moved >= 10 || one.held) return;
+        one.done = true;
+        sendJson({ t: 'mouse', kind: 'rclick' });
+        vibrate(25);
+      }, 500);
+    };
+    const moveOne = (dx, dy, e) => {
+      one.moved += Math.abs(dx) + Math.abs(dy);
+      if (one.done) return;
+      if (mode === 'direct') {
+        if (one.moved < 8) return;
+        if (!one.held) { one.held = true; clearTimeout(one.long); sendJson({ t: 'mbtn', b: 'left', down: true }); }
+        return moveTo(e.clientX, e.clientY);
+      }
+      if (one.moved >= 10) clearTimeout(one.long);
+      // The pointer follows the finger across the picture (times w.sens). Sent as positions, not
+      // as moves, so the PC's pointer acceleration can't make it drift from the dot, and it stays
+      // on this monitor (the buttons at the top switch).
+      const r = stage.getBoundingClientRect(), k = w.sens ?? 1;
+      if (cursor) {
+        const c = [clamp(cursor[0] + dx * k / r.width, 0, 1), clamp(cursor[1] + dy * k / r.height, 0, 1)];
+        predictUntil = performance.now() + 400;
+        setCursor(c);
+        return sendJson({ t: 'mouse', kind: 'to', m: mon, x: +c[0].toFixed(5), y: +c[1].toFixed(5) });
+      }
+      // pointer on another monitor (or not known yet): plain moves
+      const m = screens[mon] || { w: 1920, h: 1080 };
+      ax += dx * k * m.w / r.width; ay += dy * k * m.h / r.height;
+      const ix = Math.trunc(ax), iy = Math.trunc(ay);
+      if (ix || iy) { send({ t: 'mouse', kind: 'move', dx: ix, dy: iy }); ax -= ix; ay -= iy; }
+    };
+
+    const gestureMove = () => {
+      const [cx, cy] = centre(), dist = spread();
+      const dx = cx - g.cx, dy = cy - g.cy, dd = dist - g.dist, ratio = g.dist > 0 && dist > 0 ? dist / g.dist : 1;
+      g.cx = cx; g.cy = cy; g.dist = dist;
+      g.travel += Math.abs(dx) + Math.abs(dy) + Math.abs(dd);
+      g.sx += dx; g.sy += dy; g.sd += dd;
+      if (!g.mode) {
+        if (g.n === 2 && Math.abs(g.sd) > 16 && Math.abs(g.sd) > Math.abs(g.sx) + Math.abs(g.sy)) g.mode = 'zoom';
+        else if (Math.abs(g.sx) + Math.abs(g.sy) > 10) g.mode = 'scroll';   // like a touchpad, zoomed or not
+        else return;
+      }
+      if (g.mode === 'zoom') {
+        // the spot under the fingers stays under them
+        const r = el.getBoundingClientRect(), px = cx - r.left, py = cy - r.top;
+        const z2 = clamp(z * ratio, 1, 8);
+        ox = px - (px - dx - ox) * (z2 / z);
+        oy = py - (py - dy - oy) * (z2 / z);
+        z = z2;
+        layoutStage();
+      } else {
+        // natural scrolling: the page follows the fingers
+        ax += dx * 6; ay += dy * 6;
+        const sx = Math.trunc(ax), sy = Math.trunc(ay);
+        if (sx || sy) { send({ t: 'mouse', kind: 'scroll', dy: sy, dx: -sx }); ax -= sx; ay -= sy; }
+      }
+    };
+    const endGesture = () => {
+      if (!g.mode && g.travel < 20 && performance.now() - g.t0 < 350) {
+        sendJson({ t: 'mouse', kind: g.n === 2 ? 'rclick' : 'mclick' });
+        vibrate(10);
+      }
+      if (g.mode === 'zoom') schedule(0);   // sharper picture for the new zoom
+      g = null;
+    };
+
+    // A mouse points straight at the spot, whatever the mode
+    const MOUSE_BUTTONS = ['left', 'middle', 'right'];
+    let mouseAt = null, mouseRaf = 0;
+    const mouseMove = e => {
+      mouseAt = [e.clientX, e.clientY];
+      if (!mouseRaf) mouseRaf = requestAnimationFrame(() => { mouseRaf = 0; if (mouseAt) moveTo(...mouseAt); });
+    };
+
+    el.addEventListener('pointerdown', e => {
+      if (e.target.closest('.scr-bar, .scr-kb')) return;
+      e.preventDefault();
+      try { el.setPointerCapture(e.pointerId); } catch {}
+      if (e.pointerType === 'mouse') {
+        moveTo(e.clientX, e.clientY);
+        return sendJson({ t: 'mbtn', b: MOUSE_BUTTONS[e.button] || 'left', down: true });
+      }
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (g) return rebase();
+      if (pts.size >= 2) {
+        if (one) { one.done = !one.held; dropOne(); }   // that finger was the start of a gesture
+        g = { n: pts.size, mode: null, t0: performance.now(), travel: 0, sx: 0, sy: 0, sd: 0 };
+        return rebase();
+      }
+      startOne(e);
+    });
+    el.addEventListener('pointermove', e => {
+      if (e.pointerType === 'mouse') return mouseMove(e);
+      const p = pts.get(e.pointerId);
+      if (!p) return;
+      const dx = e.clientX - p.x, dy = e.clientY - p.y;
+      p.x = e.clientX; p.y = e.clientY;
+      if (g) return gestureMove();
+      if (one?.id === e.pointerId) moveOne(dx, dy, e);
+    });
+    const lift = (e, click) => {
+      if (e.pointerType === 'mouse') {
+        if (e.type === 'pointerup') sendJson({ t: 'mbtn', b: MOUSE_BUTTONS[e.button] || 'left', down: false });
+        return;
+      }
+      if (!pts.delete(e.pointerId)) return;
+      if (g) { if (pts.size) rebase(); else endGesture(); return; }
+      if (one?.id === e.pointerId) dropOne(click);
+    };
+    el.addEventListener('pointerup', e => lift(e, true));
+    el.addEventListener('pointercancel', e => lift(e, false));
+    el.addEventListener('wheel', e => {
+      e.preventDefault();
+      const k = e.deltaMode === 1 ? 40 : e.deltaMode === 2 ? 800 : 1.2;   // lines / pages / pixels to wheel units
+      sendJson({ t: 'mouse', kind: 'scroll', dy: -Math.round(e.deltaY * k), dx: Math.round(e.deltaX * k) });
+    }, { passive: false });
+    el.addEventListener('contextmenu', e => e.preventDefault());
+
+    // A hardware keyboard: every key goes to the PC while this screen is shown
+    const onKey = e => {
+      if (!el.isConnected) return false;
+      if (['Control', 'Shift', 'Alt', 'Meta', 'AltGraph', 'OS'].includes(e.key)) return true;
+      e.preventDefault();
+      if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) { send({ t: 'type', text: e.key }); return true; }
+      let name = SCREEN_KEYS[e.key] || (/^F\d{1,2}$/.test(e.key) ? e.key.toLowerCase() : null);
+      if (!name && /^Key[A-Z]$/.test(e.code)) name = e.code.slice(3).toLowerCase();   // ctrl+c whatever the layout
+      if (!name && /^Digit\d$/.test(e.code)) name = e.code.slice(5);
+      if (!name && e.key.length === 1) name = e.key.toLowerCase();
+      if (!name || target().code(name) == null) return true;
+      const mods = [e.ctrlKey && 'ctrl', e.altKey && 'alt', e.shiftKey && 'shift', e.metaKey && 'win'].filter(Boolean);
+      send(mods.length ? { t: 'combo', keys: [...mods, name] } : { t: 'key', k: name });
+      return true;
+    };
+    app.screenKeys = onKey;
+
+    const stop = () => {
+      stopped = true;
+      clearTimeout(timer);
+      ro.disconnect();
+      io.disconnect();
+      dropOne();
+      if (url) URL.revokeObjectURL(url);
+      if (app.screenKeys === onKey) app.screenKeys = null;
+    };
+
+    renderMode();
+    schedule(0);
+    setTimeout(pollCursor, 300);
     return el;
   },
 
@@ -1530,6 +1912,7 @@ function openJsonSheet() {
 const app = {
   servers: [],
   tab: store.get('tab', null),   // "serverId/layoutId" or "settings"
+  screenKeys: null,              // set by a shown screen widget: takes the hardware keys
   edit: null,                    // { srv, draft } while editing a server's layouts
   keyNames: new Set(),
   statusMsg: null,
@@ -1983,6 +2366,7 @@ const app = {
   // Hardware keys (e.g. a Bluetooth keyboard) forwarded to the current PC
   hardwareKey(e) {
     if (e.target.matches('input, textarea, select') || $('#sheet').open) return;
+    if (this.screenKeys?.(e)) return;   // a Screen tab is open: every key goes to its PC
     const map = { AudioVolumeUp: 'volup', AudioVolumeDown: 'voldown', AudioVolumeMute: 'mute', MediaPlayPause: 'playpause',
       ' ': 'playpause', ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'volup', ArrowDown: 'voldown',
       MediaTrackNext: 'next', MediaTrackPrevious: 'prev', f: 'f', Escape: 'esc' };

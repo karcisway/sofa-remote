@@ -236,6 +236,15 @@ impl Platform for Backend {
         self.send(&[mouse(MOUSEEVENTF_MOVE, dx, dy, 0)]);
     }
 
+    fn move_abs(&mut self, x: i32, y: i32) {
+        // absolute moves are 0..65535 across the whole virtual desktop (every monitor)
+        let (left, top) = unsafe { (GetSystemMetrics(SM_XVIRTUALSCREEN), GetSystemMetrics(SM_YVIRTUALSCREEN)) };
+        let (w, h) = unsafe { (GetSystemMetrics(SM_CXVIRTUALSCREEN), GetSystemMetrics(SM_CYVIRTUALSCREEN)) };
+        let scale = |v: i32, from: i32, size: i32| ((v - from).clamp(0, size - 1) as i64 * 65535 / (size - 1).max(1) as i64) as i32;
+        let flags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK;
+        self.send(&[mouse(flags, scale(x, left, w), scale(y, top, h), 0)]);
+    }
+
     fn button(&mut self, button: Button, down: bool) {
         let flags = match (button, down) {
             (Button::Left, true) => MOUSEEVENTF_LEFTDOWN,

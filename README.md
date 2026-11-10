@@ -2,8 +2,8 @@
 
 # Sofa Remote
 
-Control a PC (Windows, Linux, macOS) from your phone: media keys, volume, touchpad, live
-keyboard, shared clipboard, custom layouts, and **real virtual gamepads** (every phone becomes
+Control a PC (Windows, Linux, macOS) from your phone: media keys, volume, touchpad, a view of
+the screen you can click on, live keyboard, shared clipboard, custom layouts, and **real virtual gamepads** (every phone becomes
 its own Xbox 360 controller). The PC side is a single executable with the phone web app built in.
 Nothing to install on the phone: it runs in the browser, or in the optional Android app.
 
@@ -260,6 +260,7 @@ in px. `fit: true` + `rows` makes a fixed grid that fills the screen (good for g
 | `clipboard` | shared clipboard + open URL |
 | `lockscreen` | phone lock-screen / headset media controls |
 | `label` | `text` |
+| `screen` | the PC's screen as snapshots (no video), with monitor buttons to switch between screens. **Touchpad** mode: drag to move the pointer, tap to click, tap then drag to hold the button, hold still for a right click. **Direct** mode: tap or drag right where you want it. Two fingers: drag to scroll the PC (as on a touchpad), pinch to zoom the picture (moving them while pinching pans it), tap for a right click. A mouse or keyboard on the phone (or a computer's browser) goes straight to the PC. Zoomed in, the picture follows the pointer when it nears an edge (⌖ button turns it off). `mode` (`touchpad`/`direct`, the starting one), `follow` (default `true`), `sens`, `interval` (ms between snapshots while idle, default 1000), `quality` (JPEG, default 60). Linux needs an X11 session; macOS asks for Screen Recording permission |
 
 ### Actions
 

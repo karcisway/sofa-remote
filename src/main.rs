@@ -12,6 +12,7 @@ mod keys;
 mod power;
 #[cfg(feature = "webrtc")]
 mod rtc;
+mod screen;
 mod session;
 mod settings;
 mod wake;
@@ -121,6 +122,26 @@ async fn api_self(State(app): State<Shared>, headers: HeaderMap, Query(q): Query
     // Lax (not Strict): a link opened from a QR scanner is a cross-site navigation
     let cookie = format!("{COOKIE_NAME}={}; Path=/; Max-Age=31536000; SameSite=Lax; HttpOnly", app.token);
     ([(header::SET_COOKIE, cookie)], Json(json!({ "name": app.name, "key": app.token }))).into_response()
+}
+
+/// A JPEG of one monitor: ?m=index&w=&h= (largest size wanted)&q= (JPEG quality). The pointer's
+/// spot on it (0 to 1) is in X-Cursor. Phones showing several PCs fetch it from another origin.
+async fn api_screen(State(app): State<Shared>, headers: HeaderMap, Query(q): Query<HashMap<String, String>>) -> Response {
+    let cors = [(header::ACCESS_CONTROL_ALLOW_ORIGIN, "*"), (header::ACCESS_CONTROL_EXPOSE_HEADERS, "x-cursor")];
+    if !authed(&app, &headers, &q) {
+        return (StatusCode::FORBIDDEN, cors, "wrong key").into_response();
+    }
+    let num = |k: &str, d: u32| q.get(k).and_then(|v| v.parse::<u32>().ok()).unwrap_or(d);
+    let (index, w, h, quality) = (num("m", 0) as usize, num("w", 1600).min(4096), num("h", 1600).min(4096), num("q", 60));
+    match tokio::task::spawn_blocking(move || screen::capture(index, w, h, quality as u8)).await {
+        Ok(Ok(frame)) => {
+            let cursor = frame.cursor.map(|(x, y)| format!("{x:.4},{y:.4}")).unwrap_or_default();
+            (cors, [(header::CONTENT_TYPE, "image/jpeg".to_string()), (header::CACHE_CONTROL, "no-store".into()),
+                    (header::HeaderName::from_static("x-cursor"), cursor)], frame.jpeg).into_response()
+        }
+        Ok(Err(e)) => (StatusCode::SERVICE_UNAVAILABLE, cors, e).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, cors, e.to_string()).into_response(),
+    }
 }
 
 async fn ws_upgrade(State(app): State<Shared>, ConnectInfo(peer): ConnectInfo<SocketAddr>, headers: HeaderMap,
@@ -349,6 +370,27 @@ async fn handle_json(conn: &mut Conn, m: &Value) -> anyhow::Result<Option<Value>
             text: str_field(m, "text").to_string(),
             backspaces: m.get("backspaces").and_then(Value::as_u64).unwrap_or(0).min(1000) as u32,
         }),
+        // a spot on one monitor (x, y from 0 to 1), for the Screen tab
+        "mouse" if str_field(m, "kind") == "to" => {
+            let index = m.get("m").and_then(Value::as_u64).unwrap_or(0) as usize;
+            let f = |k| m.get(k).and_then(Value::as_f64).unwrap_or(0.5);
+            let mon = tokio::task::spawn_blocking(screen::monitors).await?.into_iter().nth(index)
+                .ok_or_else(|| anyhow::anyhow!("no monitor {}", index + 1))?;
+            let (x, y) = mon.point(f("x"), f("y"));
+            send(Cmd::MoveTo { x, y });
+        }
+        // the real pointer position, polled by the Screen tab while it is used
+        "cursor" => {
+            if let Some((m, x, y)) = tokio::task::spawn_blocking(screen::cursor).await? {
+                reply["m"] = m.into();
+                reply["x"] = x.into();
+                reply["y"] = y.into();
+            }
+        }
+        "screens" => {
+            let list = tokio::task::spawn_blocking(screen::monitors).await?;
+            reply["screens"] = list.iter().map(|m| json!({ "w": m.w, "h": m.h, "primary": m.primary })).collect();
+        }
         "mouse" => send(match str_field(m, "kind") {
             "move" => Cmd::Move { dx: clamp_i32(m, "dx"), dy: clamp_i32(m, "dy") },
             "scroll" => Cmd::Scroll { dy: clamp_i32(m, "dy"), dx: clamp_i32(m, "dx") },
@@ -557,6 +599,12 @@ fn parse_args() -> Args {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let args = parse_args();
+    // Real pixels on scaled monitors, so screenshots, the pointer and injected touches agree
+    #[cfg(windows)]
+    unsafe {
+        windows_sys::Win32::UI::HiDpi::SetProcessDpiAwarenessContext(
+            windows_sys::Win32::UI::HiDpi::DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+    }
     #[cfg(windows)]
     if args.install_driver {
         if gamepad::driver::installed() {
@@ -614,6 +662,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/", get(index))
         .route("/ws", get(ws_upgrade))
         .route("/api/self", get(api_self))
+        .route("/api/screen", get(api_screen))
         .route("/icon.png", get(icon))
         .route("/{file}", get(static_file))
         .with_state(app.clone());

@@ -110,6 +110,10 @@ impl Platform for Backend {
         let _ = self.enigo.move_mouse(dx, dy, Coordinate::Rel);
     }
 
+    fn move_abs(&mut self, x: i32, y: i32) {
+        let _ = self.enigo.move_mouse(x, y, Coordinate::Abs);
+    }
+
     fn button(&mut self, button: Button, down: bool) {
         let b = match button {
             Button::Left => enigo::Button::Left,

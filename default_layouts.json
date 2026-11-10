@@ -877,6 +877,24 @@
       ]
     },
     {
+      "id": "screen",
+      "name": "Screen",
+      "icon": "lucide:monitor",
+      "cols": 1,
+      "rows": 1,
+      "fit": true,
+      "landscape": true,
+      "widgets": [
+        {
+          "type": "screen",
+          "x": 0,
+          "y": 0,
+          "w": 1,
+          "h": 1
+        }
+      ]
+    },
+    {
       "id": "gamepad",
       "name": "Gamepad",
       "icon": "lucide:gamepad",

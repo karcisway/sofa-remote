@@ -1118,6 +1118,8 @@ dependencies = [
  "num-traits",
  "png",
  "tiff",
+ "zune-core",
+ "zune-jpeg",
 ]
 
 [[package]]
@@ -2350,10 +2352,12 @@ dependencies = [
  "async-trait",
  "axum",
  "bytes",
+ "core-graphics",
  "enigo",
  "evdev",
  "futures-util",
  "getrandom 0.4.3",
+ "image",
  "network-interface",
  "open",
  "qrcode",
@@ -2365,6 +2369,7 @@ dependencies = [
  "webrtc",
  "windows",
  "windows-sys 0.61.2",
+ "x11rb",
 ]
 
 [[package]]
